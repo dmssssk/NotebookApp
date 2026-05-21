@@ -1,0 +1,96 @@
+@page "/filter"
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject ThemeService Theme
+@implements IDisposable
+
+<PageTitle>Фильтрация заметок</PageTitle>
+
+<div class="container mt-4" style="max-width: 800px;">
+    <h2 class="mb-4">🔍 Фильтрация моих заметок</h2>
+
+    <!-- Кнопки выбора тега -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn @(selectedTag == "Все" ? "btn-dark" : "btn-outline-dark")" @onclick='() => selectedTag = "Все"'>
+            🌐 Все (@notes.Count)
+        </button>
+        @foreach (var tag in availableTags)
+        {
+            var count = notes.Count(n => n.Tag == tag);
+            <button class="btn btn-sm" 
+                    style="background-color: @(selectedTag == tag ? GetTagColor(tag) : "transparent"); border: 1px solid @GetTagColor(tag); font-weight: @(selectedTag == tag ? "bold" : "normal");"
+                    @onclick="() => selectedTag = tag">
+                🏷️ @tag (@count)
+            </button>
+        }
+    </div>
+
+    <!-- Список отфильтрованных заметок -->
+    <div class="row">
+        @if (!FilteredNotes.Any())
+        {
+            <div class="alert alert-secondary text-center">Нет заметок с таким тегом.</div>
+        }
+        else
+        {
+            @foreach (var note in FilteredNotes)
+            {
+                <div class="col-12 mb-3">
+                    <div class="card h-100 shadow-sm border border-secondary" style="cursor: pointer;" @onclick='() => Navigation.NavigateTo($"/note/{note.Id}")'>
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">@note.Title <span class="text-muted fs-6">✏️</span></h5>
+                            <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">🏷️ @note.Tag</span>
+                            <p class="card-text text-secondary" style="white-space: pre-wrap;">
+                                @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
+                            </p>
+                            <small class="text-muted">🕒 Создано: @note.CreatedAt.ToString("g")</small>
+                        </div>
+                    </div>
+                </div>
+            }
+
+        }
+    </div>
+</div>
+
+@code {
+    private List<Note> notes = new();
+    private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
+    private string selectedTag = "Все";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var savedNotes = await LocalStorage.GetItemAsync<List<Note>>("my_notes");
+        if (savedNotes != null) notes = savedNotes;
+
+        // Подписываемся на динамическое обновление темы
+        Theme.OnThemeChanged += StateHasChanged;
+    }
+
+    private List<Note> FilteredNotes => selectedTag == "Все" 
+        ? notes.OrderByDescending(n => n.CreatedAt).ToList() 
+        : notes.Where(n => n.Tag == selectedTag).OrderByDescending(n => n.CreatedAt).ToList();
+
+    // Метод определения цвета (точно такой же, как на главной)
+    private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch
+    {
+        "Учёба" => "#800f2f",
+        "Работа" => "#1b4332",
+        "Личное" => "#03045e",
+        "Идеи" => "#744210",
+        _ => "#343a40"
+    } : tag switch
+    {
+        "Учёба" => "#ffccd5",
+        "Работа" => "#d8f3dc",
+        "Личное" => "#caf0f8",
+        "Идеи" => "#fefae0",
+        _ => "#e5e5e5"
+    };
+
+    public void Dispose()
+    {
+        Theme.OnThemeChanged -= StateHasChanged;
+    }
+}
+

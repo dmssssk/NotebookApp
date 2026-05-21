@@ -1,0 +1,155 @@
+@page "/note/{Id:guid}"
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+@inject ThemeService Theme
+@implements IDisposable
+
+<PageTitle>@(isEditing ? "Редактирование" : "Просмотр заметки")</PageTitle>
+
+<div class="container mt-4" style="max-width: 800px;">
+    <button class="btn btn-outline-secondary mb-3" @onclick="GoBack">⬅️ Назад</button>
+
+    @if (note == null)
+    {
+        <div class="alert alert-danger">Заметка не найдена или еще загружается...</div>
+    }
+    else
+    {
+        <div class="card shadow-sm border border-secondary p-4">
+            @if (isEditing)
+            {
+                <!-- РЕЖИМ РЕДАКТИРОВАНИЯ -->
+                <h4 class="mb-3">Редактирование заметки</h4>
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Заголовок</label>
+                    <input type="text" class="form-control" @bind="editTitle" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Категория (Тег)</label>
+                    <select class="form-select" @bind="editTag">
+                        @foreach (var tag in availableTags)
+                        {
+                            <option value="@tag">@tag</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label font-weight-bold">Текст заметки</label>
+                    <textarea class="form-control" rows="8" @bind="editContent"></textarea>
+                </div>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-success" @onclick="SaveEdit" disabled="@(string.IsNullOrWhiteSpace(editTitle))">💾 Сохранить</button>
+                    <button class="btn btn-secondary" @onclick="() => isEditing = false">❌ Отмена</button>
+                </div>
+            }
+            else
+            {
+                <!-- РЕЖИМ ПРОСМОТРА -->
+                <div class="d-flex justify-content-between align-items-start border-bottom pb-2 mb-3">
+                    <div>
+                        <h2 class="text-primary mb-1">@note.Title</h2>
+                        <!-- Адаптивный бейдж тега с авто-подбором цвета текста -->
+                        <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
+                            Тег: 🏷️ @note.Tag
+                        </span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-warning" @onclick="StartEdit">✏️ Редактировать</button>
+                        <button class="btn btn-outline-danger" @onclick="DeleteNote">🗑️ Удалить</button>
+                    </div>
+                </div>
+
+                <!-- Полный текст заметки -->
+                <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
+                
+                <div class="text-muted mt-4 pt-2 border-top fs-6">
+                    🕒 Дата создания: @note.CreatedAt.ToString("F")
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; } // Принимаем ID из URL
+
+    private Note? note;
+    private List<Note> allNotes = new();
+    private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
+
+    private bool isEditing = false;
+    private string editTitle = "";
+    private string editContent = "";
+    private string editTag = "Без тега";
+
+    protected override void OnInitialized()
+    {
+        // Подписываемся на динамическое изменение темы
+        Theme.OnThemeChanged += StateHasChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Загружаем список из локального хранилища браузера
+        var savedNotes = await LocalStorage.GetItemAsync<List<Note>>("my_notes");
+        if (savedNotes != null)
+        {
+            allNotes = savedNotes;
+            note = allNotes.FirstOrDefault(n => n.Id == Id);
+        }
+    }
+
+    private void StartEdit()
+    {
+        if (note == null) return;
+        editTitle = note.Title;
+        editContent = note.Content;
+        editTag = note.Tag;
+        isEditing = true;
+    }
+
+    private async Task SaveEdit()
+    {
+        if (note == null) return;
+
+        note.Title = editTitle;
+        note.Content = editContent;
+        note.Tag = editTag;
+
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+        isEditing = false;
+    }
+
+    private async Task DeleteNote()
+    {
+        if (note == null) return;
+        allNotes.Remove(note);
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+        Navigation.NavigateTo("/"); // Перенаправляем на главную
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/");
+
+    // Метод выбора цвета, адаптирующийся под темную и светлую темы
+    private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch
+    {
+        "Учёба" => "#800f2f",
+        "Работа" => "#1b4332",
+        "Личное" => "#03045e",
+        "Идеи" => "#744210",
+        _ => "#343a40"
+    } : tag switch
+    {
+        "Учёба" => "#ffccd5",
+        "Работа" => "#d8f3dc",
+        "Личное" => "#caf0f8",
+        "Идеи" => "#fefae0",
+        _ => "#e5e5e5"
+    };
+
+    // Отписываемся от события при уничтожении страницы для избежания утечек памяти
+    public void Dispose()
+    {
+        Theme.OnThemeChanged -= StateHasChanged;
+    }
+}

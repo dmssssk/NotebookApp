@@ -1,0 +1,66 @@
+﻿@inject ThemeService Theme
+@implements IDisposable
+
+<div class="d-flex flex-column h-100">
+    <!-- Верхняя часть: Логотип -->
+    <div class="top-row ps-3 navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="">Notebook App</a>
+        </div>
+    </div>
+
+    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+    <!-- Средняя часть: Ссылки на страницы (растягивается) -->
+    <div class="nav-scrollable flex-grow-1" onclick="document.querySelector('.navbar-toggler').click()">
+        <nav class="flex-column">
+            
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                    <span class="bi bi-journal-text-nav-menu" aria-hidden="true"></span> Мои заметки
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="filter">
+                    <span class="bi bi-tags-fill-nav-menu" aria-hidden="true"></span> Фильтрация заметок
+                </NavLink>
+            </div>
+
+        </nav>
+    </div>
+
+    <!-- Нижняя часть: Кнопка переключения темы (всегда внизу) -->
+    <div class="p-3 border-top border-secondary style-theme-toggle">
+        <button class="btn w-100 d-flex align-items-center justify-content-center gap-2 @(Theme.IsDarkMode ? "btn-outline-light" : "btn-outline-dark")" 
+                @onclick="ToggleTheme">
+            @if (Theme.IsDarkMode)
+            {
+                <span>☀️ Светлая тема</span>
+            }
+            else
+            {
+                <span>🌙 Тёмная тема</span>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Подписываемся на обновление темы, чтобы кнопка меняла текст
+        Theme.OnThemeChanged += StateHasChanged;
+    }
+
+    private async Task ToggleTheme()
+    {
+        await Theme.ToggleThemeAsync();
+    }
+
+    public void Dispose()
+    {
+        // Отписываемся от события при уничтожении компонента
+        Theme.OnThemeChanged -= StateHasChanged;
+    }
+}
