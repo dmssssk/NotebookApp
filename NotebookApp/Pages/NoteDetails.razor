@@ -2,8 +2,6 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 @inject ThemeService Theme
-@inject IJSRuntime JSRuntime
-@using System.Runtime.InteropServices.JavaScript
 @using NotebookApp.Utils
 
 @implements IDisposable
@@ -11,35 +9,6 @@
 <PageTitle>@(isEditing ? "Редактирование" : "Просмотр заметки")</PageTitle>
 
 <div class="container mt-4" style="max-width: 800px;">
-    
-    
-    
-    
-    
-    @if (isModalVisible)
-    {
-        <!-- Задний фон (затемнение) -->
-        <div class="modal-backdrop" @onclick="CloseModal"></div>
-
-        <!-- Сам контейнер окна -->
-        <div class="custom-modal">
-            <h3>Подтверждение</h3>
-            <p>В вашей заметке есть дата, хотите добавить событие в этот день в google календарь?</p>
-        
-            <div class="modal-buttons">
-                <button class="btn btn-success" @onclick="HandleConfirm">Да</button>
-                <button class="btn btn-danger" @onclick="HandleCancel">Нет</button>
-            </div>
-        </div>
-    }
-    
-    
-    
-    
-    
-    
-    
-    
     
     <button class="btn btn-outline-secondary mb-3" @onclick="GoBack">⬅️ Назад</button>
 
@@ -104,6 +73,9 @@
     }
 </div>
 
+<GoogleCalendarWindow @ref="ModalWindow"/>
+
+
 @code {
     [Parameter] public Guid Id { get; set; } // Принимаем ID из URL
 
@@ -116,41 +88,9 @@
     private string editContent = "";
     private string editTag = "Без тега";
     
+    private GoogleCalendarWindow ModalWindow { get; set; } = null!;
     
     
-    // Переменная состояния окна (скрыто/показано)
-    private bool isModalVisible = false;
-
-    // Метод открытия
-    private void OpenModal() => isModalVisible = true;
-
-    private void CloseModal() => isModalVisible = false;
-
-    private async Task HandleConfirm()
-    {
-        //FIXME дублирование затратного кода
-        var dates = GoogleCalendar.CheckDate(note.Content);
-
-        foreach (var date in dates)
-        {
-            await JSRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(note, date), "_blank");
-        }
-            
-        CloseModal();
-            
-            
-    }
-
-    private void HandleCancel()
-    {
-        CloseModal();
-    }
-    
-    
-    
-    
-    
-
     protected override void OnInitialized()
     {
         // Подписываемся на динамическое изменение темы
@@ -192,7 +132,7 @@
 
         if (dates.Count != 0)
         {
-            OpenModal();
+            ModalWindow.OpenModal(note);
         }
         
     }

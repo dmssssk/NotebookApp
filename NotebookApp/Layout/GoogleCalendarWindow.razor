@@ -1,0 +1,56 @@
+﻿@inject IJSRuntime JsRuntime
+@using NotebookApp.Utils
+
+@if (isModalVisible)
+{
+    <!-- Задний фон (затемнение) -->
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+
+    <!-- Сам контейнер окна -->
+    <div class="custom-modal">
+        <h3>Подтверждение</h3>
+        <p>В вашей заметке есть дата, хотите добавить событие в этот день в google календарь?</p>
+        
+        <div class="modal-buttons">
+            <button class="btn btn-success" @onclick="HandleConfirm">Да</button>
+            <button class="btn btn-danger" @onclick="HandleCancel">Нет</button>
+        </div>
+    </div>
+}
+
+@code {
+
+        private Note lastNote;
+        // Переменная состояния окна (скрыто/показано)
+        private bool isModalVisible = false;
+
+        // Метод открытия
+        public void OpenModal(Note note)
+        {
+            lastNote = note;
+            isModalVisible = true;
+            StateHasChanged();
+        }
+
+
+        private void CloseModal() => isModalVisible = false;
+
+        private async Task HandleConfirm()
+        {
+            var dates = GoogleCalendar.CheckDate(lastNote.Content);
+
+
+            foreach (var date in dates)
+            {
+                await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(lastNote, date), "_blank");
+            }
+            
+            CloseModal();
+            
+        }
+
+        private void HandleCancel()
+        {
+            CloseModal();
+        }
+}
