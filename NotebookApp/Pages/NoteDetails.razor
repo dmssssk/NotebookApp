@@ -2,14 +2,45 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 @inject ThemeService Theme
-@using System.Text.RegularExpressions;
-@using System.Globalization;
+@inject IJSRuntime JSRuntime
 @using System.Runtime.InteropServices.JavaScript
+@using NotebookApp.Utils
+
 @implements IDisposable
 
 <PageTitle>@(isEditing ? "Редактирование" : "Просмотр заметки")</PageTitle>
 
 <div class="container mt-4" style="max-width: 800px;">
+    
+    
+    
+    
+    
+    @if (isModalVisible)
+    {
+        <!-- Задний фон (затемнение) -->
+        <div class="modal-backdrop" @onclick="CloseModal"></div>
+
+        <!-- Сам контейнер окна -->
+        <div class="custom-modal">
+            <h3>Подтверждение</h3>
+            <p>В вашей заметке есть дата, хотите добавить событие в этот день в google календарь?</p>
+        
+            <div class="modal-buttons">
+                <button class="btn btn-success" @onclick="HandleConfirm">Да</button>
+                <button class="btn btn-danger" @onclick="HandleCancel">Нет</button>
+            </div>
+        </div>
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
     <button class="btn btn-outline-secondary mb-3" @onclick="GoBack">⬅️ Назад</button>
 
     @if (note == null)
@@ -25,7 +56,7 @@
                 <h4 class="mb-3">Редактирование заметки</h4>
                 <div class="mb-3">
                     <label class="form-label font-weight-bold">Заголовок</label>
-                    <input type="text" class="form-control" @bind="editTitle" />
+                    <input type="text" class="form-control" @bind="editTitle"/>
                 </div>
                 <div class="mb-3">
                     <label class="form-label font-weight-bold">Категория (Тег)</label>
@@ -64,7 +95,7 @@
 
                 <!-- Полный текст заметки -->
                 <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
-                
+
                 <div class="text-muted mt-4 pt-2 border-top fs-6">
                     🕒 Дата создания: @note.CreatedAt.ToString("F")
                 </div>
@@ -84,6 +115,41 @@
     private string editTitle = "";
     private string editContent = "";
     private string editTag = "Без тега";
+    
+    
+    
+    // Переменная состояния окна (скрыто/показано)
+    private bool isModalVisible = false;
+
+    // Метод открытия
+    private void OpenModal() => isModalVisible = true;
+
+    private void CloseModal() => isModalVisible = false;
+
+    private async Task HandleConfirm()
+    {
+        //FIXME дублирование затратного кода
+        var dates = GoogleCalendar.CheckDate(note.Content);
+
+        foreach (var date in dates)
+        {
+            await JSRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(note, date), "_blank");
+        }
+            
+        CloseModal();
+            
+            
+    }
+
+    private void HandleCancel()
+    {
+        CloseModal();
+    }
+    
+    
+    
+    
+    
 
     protected override void OnInitialized()
     {
@@ -101,52 +167,6 @@
             note = allNotes.FirstOrDefault(n => n.Id == Id);
         }
     }
-
-    private List<DateTime> CheckDate(string text)
-    {
-        Regex regex = new Regex(@"\d{2}\.\d{2}\.\d{4}");
-        
-        MatchCollection matches = regex.Matches(text);
-        List<DateTime> dates = new List<DateTime>();
-
-        foreach (Match match in matches)
-        {
-            string dateStr = match.Value;
-
-            if (DateTime.TryParseExact(dateStr, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
-            {
-                dates.Add(parsedDate);
-                Console.WriteLine(parsedDate);
-            }
-        }
-
-        return dates;
-    }
-    
-    private string LinkToGoogleCalendar(Note note_, DateTime date)
-    {
-        string title = note_.Title;
-        string description = note_.Content;
-        string location = "Онлайн";
-        string timeZone = "Europe/Moscow"; // Ваш часовой пояс
-
-        string formattedDate = date.ToString("yyyyMMdd");
-        string formattedDateEnd = date.AddDays(1).ToString("yyyyMMdd");
-
-        var encodedTitle = Uri.EscapeDataString(title);
-        var encodedDescription = Uri.EscapeDataString(description);
-        var encodedLocation = Uri.EscapeDataString(location);
-
-        string googleCalendarUrl = $"https://calendar.google.com/calendar/u/0/r/eventedit" +
-                                   $"?text={encodedTitle}" +
-                                   $"&dates={formattedDate}/{formattedDateEnd}" +
-                                   $"&ctz={timeZone}" +
-                                   $"&details={encodedDescription}" +
-                                   $"&location={encodedLocation}";
-
-        return googleCalendarUrl;
-    }
-    
 
     private void StartEdit()
     {
@@ -168,15 +188,12 @@
         await LocalStorage.SetItemAsync("my_notes", allNotes);
         isEditing = false;
         
-        var dates = CheckDate(note.Content);
-        
-        foreach (var date in dates)
+        var dates = GoogleCalendar.CheckDate(note.Content);
+
+        if (dates.Count != 0)
         {
-        Navigation.NavigateTo(LinkToGoogleCalendar(note, date), true);
+            OpenModal();
         }
-        
-        // Navigation.NavigateTo(LinkToGoogleCalendar(note, dates[0]), true);
-        // Navigation.NavigateTo(LinkToGoogleCalendar(note, dates[1]), true);
         
     }
 
