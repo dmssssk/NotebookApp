@@ -87,6 +87,8 @@
     private string editTitle = "";
     private string editContent = "";
     private string editTag = "Без тега";
+    private DateParser _dateParser = new DateParser();
+
     
     private GoogleCalendarWindow ModalWindow { get; set; } = null!;
     
@@ -128,7 +130,7 @@
         await LocalStorage.SetItemAsync("my_notes", allNotes);
         isEditing = false;
         
-        var dates = GoogleCalendar.CheckDate(note.Content);
+        var dates = _dateParser.ParseDates(note.Content);
 
         if (dates.Count != 0)
         {

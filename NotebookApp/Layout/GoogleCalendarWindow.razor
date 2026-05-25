@@ -1,5 +1,7 @@
 ﻿@inject IJSRuntime JsRuntime
 @using NotebookApp.Utils
+@inject ThemeService Theme
+
 
 @if (isModalVisible)
 {
@@ -7,10 +9,10 @@
     <div class="modal-backdrop" @onclick="CloseModal"></div>
 
     <!-- Сам контейнер окна -->
-    <div class="custom-modal">
+    <div class="custom-modal" style="background-color: @GetTagColor(lastNote.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
         <h3>Подтверждение</h3>
         <p>В вашей заметке есть дата, хотите добавить событие в этот день в google календарь?</p>
-        
+
         <div class="modal-buttons">
             <button class="btn btn-success" @onclick="HandleConfirm">Да</button>
             <button class="btn btn-danger" @onclick="HandleCancel">Нет</button>
@@ -20,37 +22,71 @@
 
 @code {
 
-        private Note lastNote;
-        // Переменная состояния окна (скрыто/показано)
-        private bool isModalVisible = false;
+    private Note lastNote;
+    private DateParser _dateParser = new DateParser();
 
-        // Метод открытия
-        public void OpenModal(Note note)
+    // Переменная состояния окна (скрыто/показано)
+    private bool isModalVisible = false;
+
+    // Метод открытия
+    public void OpenModal(Note note)
+    {
+        lastNote = note;
+        isModalVisible = true;
+        StateHasChanged();
+    }
+
+
+    private void CloseModal() => isModalVisible = false;
+
+    private async Task HandleConfirm()
+    {
+        if (lastNote != null)
         {
-            lastNote = note;
-            isModalVisible = true;
-            StateHasChanged();
-        }
-
-
-        private void CloseModal() => isModalVisible = false;
-
-        private async Task HandleConfirm()
-        {
-            var dates = GoogleCalendar.CheckDate(lastNote.Content);
+            var dates = _dateParser.ParseDates(lastNote.Content);
 
 
             foreach (var date in dates)
             {
                 await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(lastNote, date), "_blank");
             }
-            
-            CloseModal();
-            
         }
 
-        private void HandleCancel()
+        CloseModal();
+    }
+
+    private void HandleCancel()
+    {
+        CloseModal();
+    }
+    
+    
+    private string GetTagColor(string tag) 
+    {
+        if (Theme.IsDarkMode)
         {
-            CloseModal();
+            // Глубокие, темные оттенки для темной темы (чтобы белый текст хорошо читался)
+            return tag switch
+            {
+                "Учёба" => "#800f2f",      // Бордовый
+                "Работа" => "#1b4332",     // Темно-зеленый
+                "Личное" => "#03045e",     // Глубокий синий
+                "Идеи" => "#744210",       // Горчичный
+                _ => "#343a40"             // Темно-серый для "Без тега"
+            };
         }
+        else
+        {
+            // Мягкие, пастельные оттенки для светлой темы (для черного текста)
+            return tag switch
+            {
+                "Учёба" => "#ffccd5",      // Нежно-розовый
+                "Работа" => "#d8f3dc",     // Светло-салатовый
+                "Личное" => "#caf0f8",     // Нежно-бирюзовый
+                "Идеи" => "#fefae0",       // Мягкий желтый
+                _ => "#e5e5e5"             // Светло-серый для "Без тега"
+            };
+        }
+    }
+
 }

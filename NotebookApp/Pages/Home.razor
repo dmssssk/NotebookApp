@@ -36,7 +36,7 @@
     </div>
 
     <!-- Список заметок -->
-    @if (notes == null)
+    @if (notes.Count == 0)
     {
         <p><em>Загрузка хранилища...</em></p>
     }
@@ -95,6 +95,9 @@
     
     private GoogleCalendarWindow ModalWindow { get; set; } = null!;
     
+    private DateParser _dateParser = new DateParser();
+
+    
     
     protected override async Task OnInitializedAsync()
     {
@@ -148,7 +151,7 @@
         await LocalStorage.SetItemAsync("my_notes", notes);
         newTitle = ""; newContent = ""; newTag = "Без тега";
         
-        var dates = GoogleCalendar.CheckDate(note.Content);
+        var dates = _dateParser.ParseDates(note.Content);
 
         if (dates.Count != 0)
         {
