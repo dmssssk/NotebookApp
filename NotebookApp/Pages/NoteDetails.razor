@@ -2,11 +2,14 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 @inject ThemeService Theme
+@using NotebookApp.Utils
+
 @implements IDisposable
 
 <PageTitle>@(isEditing ? "Редактирование" : "Просмотр заметки")</PageTitle>
 
 <div class="container mt-4" style="max-width: 800px;">
+    
     <button class="btn btn-outline-secondary mb-3" @onclick="GoBack">⬅️ Назад</button>
 
     @if (note == null)
@@ -22,7 +25,7 @@
                 <h4 class="mb-3">Редактирование заметки</h4>
                 <div class="mb-3">
                     <label class="form-label font-weight-bold">Заголовок</label>
-                    <input type="text" class="form-control" @bind="editTitle" />
+                    <input type="text" class="form-control" @bind="editTitle"/>
                 </div>
                 <div class="mb-3">
                     <label class="form-label font-weight-bold">Категория (Тег)</label>
@@ -61,7 +64,7 @@
 
                 <!-- Полный текст заметки -->
                 <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
-                
+
                 <div class="text-muted mt-4 pt-2 border-top fs-6">
                     🕒 Дата создания: @note.CreatedAt.ToString("F")
                 </div>
@@ -69,6 +72,9 @@
         </div>
     }
 </div>
+
+<CalendarWindow @ref="ModalWindow"/>
+
 
 @code {
     [Parameter] public Guid Id { get; set; } // Принимаем ID из URL
@@ -81,7 +87,12 @@
     private string editTitle = "";
     private string editContent = "";
     private string editTag = "Без тега";
+    private DateParser _dateParser = new DateParser();
 
+    
+    private CalendarWindow ModalWindow { get; set; } = null!;
+    
+    
     protected override void OnInitialized()
     {
         // Подписываемся на динамическое изменение темы
@@ -118,6 +129,14 @@
 
         await LocalStorage.SetItemAsync("my_notes", allNotes);
         isEditing = false;
+        
+        var dates = _dateParser.ParseDates(note.Content);
+
+        if (dates.Count != 0)
+        {
+            ModalWindow.OpenModal(note);
+        }
+        
     }
 
     private async Task DeleteNote()
