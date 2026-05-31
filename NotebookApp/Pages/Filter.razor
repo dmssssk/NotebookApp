@@ -57,7 +57,6 @@
                         @if (!note.IsPinned)
                         {
                             <button class="invisible-btn" type="button" @onclick="() => Pin(note, true)" @onclick:stopPropagation>
-                                @* <button class="invisible-btn" type="button" @onclick="() => a(note)" @onclick:stopPropagation> *@
                                 <img src="icons/PinWhite.png" alt="Иконка кнопки">
                             </button>
                         }
@@ -76,6 +75,7 @@
                                 @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
                             </p>
                             <small class="text-muted">🕒 Создано: @note.CreatedAt.ToString("g")</small>
+                            <small class="text-muted d-block mt-2">✏️ @note.EditedAt.ToString("g")</small>
                         </div>
                     </div>
                 </div>
