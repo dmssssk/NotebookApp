@@ -5,7 +5,8 @@ public class Note
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
-    public string Tag { get; set; } = "Без тега"; // Новое поле для тега
+    public string Tag { get; set; } = "Без тега";
+    public string Color { get; set; } = "#ffffff";
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? ReminderTime { get; set; }
     public bool IsPinned { get; set; } = false;

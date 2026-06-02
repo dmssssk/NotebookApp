@@ -147,3 +147,13 @@ code {
     object-fit: cover; /* Заполняет квадрат без искажения пропорций */
 }
 
+/* Стили для палитры выбора цвета */
+input[type="color"] {
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+input[type="color"]:hover {
+    border-color: #888;
+}
