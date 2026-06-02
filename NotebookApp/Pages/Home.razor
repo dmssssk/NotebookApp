@@ -52,6 +52,13 @@
                 }
             </select>
         </div>
+        
+        <div class="mb-2 d-flex align-items-center gap-2">
+            <label class="form-label mb-0">Цвет заметки:</label>
+            <input type="color" @bind="newNoteColor" style="width: 50px; height: 40px; cursor: pointer;" />
+            <div style="width: 30px; height: 30px; border-radius: 50%; background-color: @newNoteColor; border: 1px solid #ccc;"></div>
+        </div>
+        
         <div class="mb-2">
             <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
         </div>
@@ -78,7 +85,7 @@
                 <div class="col-12 mb-3">
                     <!-- Вся карточка кликабельна для перехода внутрь -->
                     <div class="card h-100 shadow-sm border border-secondary card-hover"
-                         style="cursor: pointer;"
+                         style="cursor: pointer; border-left: 5px solid @note.Color; background-color: @(note.Color + "20");"
                          @onclick="() => NavigateToNote(note.Id)">
                         
                         
@@ -152,6 +159,7 @@
     private string newTitle = "";
     private string newContent = "";
     private string newTag = "Без тега";
+    private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
     
     private CalendarWindow ModalWindow { get; set; } = null!;
@@ -251,10 +259,10 @@
     private async Task AddNote()
     {
         var dates = _dateParser.ParseDates(newContent);
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates};
+        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
         notes.Add(note);
         await LocalStorage.SetItemAsync("my_notes", notes);
-        newTitle = ""; newContent = ""; newTag = "Без тега";
+        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
         
 
         if (dates.Count != 0)
