@@ -259,9 +259,7 @@
     private async Task AddNote()
     {
         var dates = _dateParser.ParseDates(newContent);
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates};
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag, Color = newNoteColor };
->>>>>>> Stashed changes
+        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
         notes.Add(note);
         await LocalStorage.SetItemAsync("my_notes", notes);
         newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
