@@ -18,13 +18,20 @@
     }
     else
     {
-        <div class="card shadow-sm border border-secondary p-4">
+        <div class="card shadow-sm border border-secondary p-4" 
+             style="border-left: 5px solid @(isEditing ? editColor : note.Color); background-color: @((isEditing ? editColor : note.Color) + "20");">
             @if (isEditing)
             {
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="mb-0">Редактирование заметки</h4>
                     <!-- Приписка об обязательности заголовка -->
                     <small class="text-danger fw-bold">* Заголовок обязателен для заполнения</small>
+                </div>
+                
+                <div class="mb-3 d-flex align-items-center gap-2">
+                    <label class="form-label font-weight-bold mb-0">Цвет заметки:</label>
+                    <input type="color" @bind="editColor" style="width: 50px; height: 40px; cursor: pointer;" />
+                    <div style="width: 30px; height: 30px; border-radius: 50%; background-color: @editColor; border: 1px solid #ccc;"></div>
                 </div>
 
                 <div class="mb-3">
@@ -53,7 +60,7 @@
                 </div>
                 <div class="d-flex gap-2 justify-content-end">
                     <button class="btn btn-success" @onclick="SaveEdit" disabled="@(string.IsNullOrWhiteSpace(editTitle))">💾 Сохранить</button>
-                    <button class="btn btn-secondary" @onclick="() => isEditing = false">❌ Отмена</button>
+                    <button class="btn btn-secondary" @onclick="CancelEdit">❌ Отмена</button>
                 </div>
             }
             else
@@ -66,6 +73,13 @@
                         <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
                             Тег: 🏷️ @note.Tag
                         </span>
+                        
+                        <div class="mt-1 d-flex align-items-center gap-2">
+                            <span class="text-muted small">Цвет заметки:</span>
+                            <div style="width: 20px; height: 20px; border-radius: 50%; background-color: @note.Color; border: 1px solid #ccc;"></div>
+                            <span class="text-muted small">@note.Color</span>
+                        </div>
+                        
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-warning" @onclick="StartEdit">✏️ Редактировать</button>
@@ -100,6 +114,7 @@
     private string editTitle = "";
     private string editContent = "";
     private string editTag = "Без тега";
+    private string editColor = "#ffffff";
     private DateParser _dateParser = new DateParser();
 
     
@@ -129,7 +144,13 @@
         editTitle = note.Title;
         editContent = note.Content;
         editTag = note.Tag;
+        editColor = note.Color;
         isEditing = true;
+    }
+    
+    private void CancelEdit()
+    {
+        isEditing = false;
     }
 
     private async Task SaveEdit()
@@ -139,14 +160,21 @@
         note.Title = editTitle;
         note.Content = editContent;
         note.Tag = editTag;
+        note.Color = editColor;
         note.EditedAt = DateTime.Now;
+        
+        var dates = _dateParser.ParseDates(note.Content);
+        bool areEqual = dates.OrderBy(x => x).SequenceEqual(note.Dates.OrderBy(x => x));
+        if (!areEqual)
+        {
+            note.Dates = dates;
+        }
 
         await LocalStorage.SetItemAsync("my_notes", allNotes);
         isEditing = false;
         
-        var dates = _dateParser.ParseDates(note.Content);
 
-        if (dates.Count != 0)
+        if (dates.Count != 0 && !areEqual)
         {
             ModalWindow.OpenModal(note);
         }
