@@ -25,9 +25,10 @@
         }
     </div>
     
+    <!-- Строка поиска -->
     <div class="mb-4">
         <div class="input-group shadow-sm">
-            <span class="card h-100 shadow-sm border border-secondary card-hover">🔍</span>
+            <span class="input-group-text">🔍</span>
             <input type="text" 
                    class="form-control border-secondary" 
                    placeholder="Поиск по названию или тексту заметки..." 
@@ -35,9 +36,35 @@
                    @oninput="OnSearchInput" />
             @if (!string.IsNullOrEmpty(SearchString))
             {
-                <!-- Кнопка очистки поиска, если что-то введено -->
                 <button class="btn btn-outline-secondary" @onclick="ClearSearch">❌</button>
             }
+        </div>
+    </div>
+
+    <!-- Блок сортировки -->
+    <div class="mb-3 d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted">Сортировать по:</span>
+            <select @bind="sortBy" class="form-select w-auto" style="width: 220px;">
+                <option value="CreatedAt">📅 Дате создания</option>
+                <option value="EditedAt">📅 Дате редактирования</option>
+                <option value="Star">⭐ Избранному</option>
+            </select>
+        </div>
+        
+        <div class="btn-group" role="group">
+            <button type="button" 
+                    class="btn btn-sm @(sortDescending == false ? "btn-primary" : "btn-outline-secondary")" 
+                    @onclick="() => sortDescending = false"
+                    title="Обратный порядок">
+                ↑
+            </button>
+            <button type="button" 
+                    class="btn btn-sm @(sortDescending == true ? "btn-primary" : "btn-outline-secondary")" 
+                    @onclick="() => sortDescending = true"
+                    title="Прямой порядок">
+                ↓
+            </button>
         </div>
     </div>
 
@@ -69,10 +96,9 @@
                             </button>
                         }
                         
-                        
                         <div class="card-body">
                             <h5 class="card-title text-primary">
-                                @note.Title <span class="text-muted fs-6"></span>
+                                @note.Title
                                 
                                 @if (!note.Star)
                                 {
@@ -86,13 +112,16 @@
                                         <img src="icons/star/starYellow.png" alt="Иконка кнопки">
                                     </button>
                                 }
-                                
-                                
                             </h5>
-                            <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">🏷️ @note.Tag</span>
+                            
+                            <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
+                                🏷️ @note.Tag
+                            </span>
+                            
                             <p class="card-text text-secondary" style="white-space: pre-wrap;">
                                 @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
                             </p>
+                            
                             <small class="text-muted">🕒 Создано: @note.CreatedAt.ToString("g")</small>
                             @if (note.EditedAt != note.CreatedAt)
                             {
@@ -102,7 +131,6 @@
                     </div>
                 </div>
             }
-
         }
     </div>
 </div>
@@ -112,25 +140,65 @@
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
     private string selectedTag = "Все";
     private string SearchString { get; set; } = "";
+    private string sortBy = "CreatedAt";      // CreatedAt, EditedAt, Star
+    private bool sortDescending = true;        // true = сначала важные/новые
 
-    
     private IEnumerable<Note> FilteredNotes
     {
         get
         {
-            IEnumerable<Note> filterTags = selectedTag == "Все" ? notes.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.CreatedAt).ToList() 
-                : notes.Where(n => n.Tag == selectedTag).OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.CreatedAt).ToList();
-            
-            
-            if (string.IsNullOrWhiteSpace(SearchString))
+            // 1. Фильтр по тегу
+            var byTag = selectedTag == "Все" 
+                ? notes 
+                : notes.Where(n => n.Tag == selectedTag);
+
+            // 2. Фильтр по поиску
+            if (!string.IsNullOrWhiteSpace(SearchString))
             {
-                return filterTags;
+                byTag = byTag.Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
+                                         n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase));
             }
 
-            return filterTags
-                .Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
-                            n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
+            // 3. Разделяем на закреплённые и обычные
+            var pinned = byTag.Where(n => n.IsPinned);
+            var unpinned = byTag.Where(n => !n.IsPinned);
+
+            // 4. Сортируем закреплённые (всегда по избранное → дата редактирования → дата создания)
+            var sortedPinned = pinned
+                .OrderByDescending(n => n.Star)
+                .ThenByDescending(n => n.EditedAt)
+                .ThenByDescending(n => n.CreatedAt);
+
+            // 5. Сортируем обычные по выбранному критерию + направлению
+            IOrderedEnumerable<Note> sortedUnpinned;
+            
+            switch (sortBy)
+            {
+                case "CreatedAt":
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.CreatedAt);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.CreatedAt);
+                    break;
+                    
+                case "EditedAt":
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.EditedAt);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.EditedAt);
+                    break;
+                    
+                case "Star":
+                default:
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.Star);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.Star);
+                    break;
+            }
+
+            // 6. Объединяем: сначала закреплённые, потом обычные
+            return sortedPinned.Concat(sortedUnpinned);
         }
     }
 
@@ -150,18 +218,13 @@
         await LocalStorage.SetItemAsync("my_notes", notes);
     }
     
-    
-
     protected override async Task OnInitializedAsync()
     {
         var savedNotes = await LocalStorage.GetItemAsync<List<Note>>("my_notes");
         if (savedNotes != null) notes = savedNotes;
-
-        // Подписываемся на динамическое обновление темы
         Theme.OnThemeChanged += StateHasChanged;
     }
 
-    // Метод определения цвета (точно такой же, как на главной)
     private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch
     {
         "Учёба" => "#800f2f",
@@ -189,4 +252,3 @@
         Theme.OnThemeChanged -= StateHasChanged;
     }
 }
-
