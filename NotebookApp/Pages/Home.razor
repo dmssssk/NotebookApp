@@ -16,7 +16,7 @@
             <span class="card h-100 shadow-sm border border-secondary card-hover">🔍</span>
             <input type="text" 
                    class="form-control border-secondary" 
-                   placeholder="Поиск по названию или тексту заметки..." 
+                   placeholder="Поиск по заголовку или тексту заметки..." 
                    value="@SearchString" 
                    @oninput="OnSearchInput" />
             @if (!string.IsNullOrEmpty(SearchString))
@@ -52,6 +52,16 @@
                 }
             </select>
         </div>
+        
+        <div class="mb-2 d-flex align-items-center gap-2">
+            <label class="form-label mb-0">Цвет заметки:</label>
+            <div style="position: relative; width: 36px; height: 36px;">
+                <input type="color" @bind="newNoteColor" @bind:event="oninput"
+                       style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border-radius: 50%;" />
+                <div style="width: 100%; height: 100%; border-radius: 50%; background-color: @(newNoteColor + "20"); border: 2px solid #ccc; pointer-events: none;"></div>
+            </div>
+        </div>
+        
         <div class="mb-2">
             <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
         </div>
@@ -78,18 +88,18 @@
                 <div class="col-12 mb-3">
                     <!-- Вся карточка кликабельна для перехода внутрь -->
                     <div class="card h-100 shadow-sm border border-secondary card-hover"
-                         style="cursor: pointer;"
+                         style="cursor: pointer; border-left: 5px solid @note.Color; background-color: @(note.Color + "20");"
                          @onclick="() => NavigateToNote(note.Id)">
                         
                         @if (!note.IsPinned)
                         {
-                            <button title="закрепить" class="invisible-btn right-side" type="button" @onclick="() => Pin(note, true)" @onclick:stopPropagation>
+                            <button title="Закрепить" class="invisible-btn right-side" type="button" @onclick="() => Pin(note, true)" @onclick:stopPropagation>
                                 <img src="icons/pin/PinWhite.png" alt="Иконка кнопки">
                             </button>
                         }
                         else
                         {
-                            <button title="открепить" class="invisible-btn right-side" type="button" @onclick="() => Pin(note, false)" @onclick:stopPropagation>
+                            <button title="Открепить" class="invisible-btn right-side" type="button" @onclick="() => Pin(note, false)" @onclick:stopPropagation>
                                 <img src="icons/pin/PinBlack.png" alt="Иконка кнопки">
                             </button>
                         }
@@ -103,13 +113,13 @@
                                     
                                     @if (!note.Star)
                                     {
-                                        <button title="важное" class="invisible-btn" type="button" style="margin-left: 10px; width: 17px; height: 17px" @onclick="() => Star(note, true)" @onclick:stopPropagation>
+                                        <button title="Важное" class="invisible-btn" type="button" style="margin-left: 10px; width: 17px; height: 17px" @onclick="() => Star(note, true)" @onclick:stopPropagation>
                                             <img src="icons/star/starBlack.png" alt="Иконка кнопки">
                                         </button>
                                     }
                                     else
                                     {
-                                        <button title="важное" class="invisible-btn" type="button" style="margin-left: 10px; width: 17px; height: 17px" @onclick="() => Star(note, false)" @onclick:stopPropagation>
+                                        <button title="Важное" class="invisible-btn" type="button" style="margin-left: 10px; width: 17px; height: 17px" @onclick="() => Star(note, false)" @onclick:stopPropagation>
                                             <img src="icons/star/starYellow.png" alt="Иконка кнопки">
                                         </button>
                                     }
@@ -153,6 +163,7 @@
     private string newTitle = "";
     private string newContent = "";
     private string newTag = "Без тега";
+    private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
     
     private CalendarWindow ModalWindow { get; set; } = null!;
@@ -253,10 +264,10 @@
     private async Task AddNote()
     {
         var dates = _dateParser.ParseDates(newContent);
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates};
+        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
         notes.Add(note);
         await LocalStorage.SetItemAsync("my_notes", notes);
-        newTitle = ""; newContent = ""; newTag = "Без тега";
+        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
         
 
         if (dates.Count != 0)
