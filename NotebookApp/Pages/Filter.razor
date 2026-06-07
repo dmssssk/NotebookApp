@@ -14,7 +14,7 @@
         <button class="btn @(selectedTag == "Все" ? "btn-dark" : "btn-outline-dark")" @onclick='() => selectedTag = "Все"'>
             🌐 Все (@notes.Count)
         </button>
-        @foreach (var tag in availableTags)
+        @foreach (var tag in availableTags.Where(x => x != "Без тега"))
         {
             var count = notes.Count(n => n.Tag == tag);
             <button class="btn btn-sm" 
@@ -36,6 +36,7 @@
                    @oninput="OnSearchInput" />
             @if (!string.IsNullOrEmpty(SearchString))
             {
+                <!-- Кнопка очистки поиска, если что-то введено -->
                 <button class="btn btn-outline-secondary" @onclick="ClearSearch">❌</button>
             }
         </div>
@@ -96,6 +97,7 @@
                             </button>
                         }
                         
+                        
                         <div class="card-body">
                             <h5 class="card-title text-primary">
                                 @note.Title
@@ -113,24 +115,31 @@
                                     </button>
                                 }
                             </h5>
-                            
-                            <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
-                                🏷️ @note.Tag
-                            </span>
+                            @if (note.Tag != "Без тега")
+                            {
+                                <span class="badge mb-2" style="background-color: @GetTagColor(note.Tag); color: @(Theme.IsDarkMode ? "#ffffff" : "#000000") !important;">
+                                    🏷️ @note.Tag
+                                </span>
+                            }
+
                             
                             <p class="card-text text-secondary" style="white-space: pre-wrap;">
                                 @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
                             </p>
                             
                             <small class="text-muted">🕒 Создано: @note.CreatedAt.ToString("g")</small>
-                            @if (note.EditedAt != note.CreatedAt)
+                            <small class="text-muted d-block mt-2">✏️ Изменено: @note.EditedAt.ToString("g")</small>
+                            @if (note.IsAddedToCalendar)
                             {
-                                <small class="text-muted d-block mt-2">✏️ Изменено: @note.EditedAt.ToString("g")</small>
+                                <span class="right-side text-muted" style="margin-top: -10px; margin-right: 10px">
+                                    🗓️ добавлено в календарь
+                                </span>
                             }
                         </div>
                     </div>
                 </div>
             }
+
         }
     </div>
 </div>
@@ -143,6 +152,7 @@
     private string sortBy = "CreatedAt";      // CreatedAt, EditedAt, Star
     private bool sortDescending = true;        // true = сначала важные/новые
 
+    
     private IEnumerable<Note> FilteredNotes
     {
         get
@@ -218,13 +228,18 @@
         await LocalStorage.SetItemAsync("my_notes", notes);
     }
     
+    
+
     protected override async Task OnInitializedAsync()
     {
         var savedNotes = await LocalStorage.GetItemAsync<List<Note>>("my_notes");
         if (savedNotes != null) notes = savedNotes;
+
+        // Подписываемся на динамическое обновление темы
         Theme.OnThemeChanged += StateHasChanged;
     }
 
+    // Метод определения цвета (точно такой же, как на главной)
     private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch
     {
         "Учёба" => "#800f2f",
@@ -252,3 +267,4 @@
         Theme.OnThemeChanged -= StateHasChanged;
     }
 }
+
