@@ -86,6 +86,10 @@
             
             <div class="mb-3">
                 <label class="form-label fw-bold mb-2">Задачи списка</label>
+                @if (_isIncorrectTasks)
+                {
+                    <small class="text-danger fw-bold right-side" style="margin-right: 10px">* для создания списка должен быть хоть одна заполненная задача</small>
+                }
                 <div class="d-flex flex-column gap-2">
                     @foreach (var task in newTasks)
                     {
@@ -98,10 +102,12 @@
                             
                             <input type="text" 
                                    class="form-control border-secondary" 
+                                   style="min-width: 0;"
                                    placeholder="Текст задачи..." 
                                    @bind="task.Text" 
                                    @bind:event="oninput"
-                                   @onkeydown="(e) => HandleTaskKeyDown(e, task)" />
+                                   @onkeydown="(e) => HandleEditTaskKeyDown(e, task)" 
+                                   @onkeyup="(e) => HandleEditTaskKeyUp(e, task)" />
                 
                             <button type="button"
                                     class="invisible-btn"
@@ -272,7 +278,7 @@
         }
     }
     
-    private void HandleTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+        private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
     {
         if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
         {
@@ -281,18 +287,31 @@
         
         if (e.Key == "Enter")
         {
+            if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text))) return;
+
             int index = newTasks.IndexOf(currentTask);
-            if (index != -1)
-            {
-                newTasks.Insert(index + 1, new OneTask());
-            }
-            else
-            {
-                newTasks.Add(new OneTask());
-            }
+            if (index != -1) newTasks.Insert(index + 1, new OneTask());
+            else newTasks.Add(new OneTask());
         }
     }
 
+    private void HandleEditTaskKeyUp(KeyboardEventArgs e, OneTask currentTask)
+    {
+        // А удаление переносим сюда, когда клавиша уже отпущена и текст стёрт
+        if (e.Key == "Backspace" || e.Key == "Delete")
+        {
+            // Проверяем: если задача стала пустой
+            if (string.IsNullOrWhiteSpace(currentTask.Text))
+            {
+                // И если в списке больше одной пустой задачи — удаляем текущую
+                if (newTasks.Count(x => string.IsNullOrWhiteSpace(x.Text)) > 1)
+                {
+                    newTasks.Remove(currentTask);
+                }
+            }
+        }
+    }
+    
     private async Task SaveTaskList()
     {
         if (string.IsNullOrWhiteSpace(newTitle))
