@@ -157,7 +157,7 @@
 
                             <button type="button"
                                     class="invisible-btn"
-                                    @onclick="() => RemoveTaskFromEdit(task)">
+                                    @onclick="() => RemoveTaskFromDetails(task)">
                                 <span>❌</span>
                             </button>
                         </div>
@@ -231,6 +231,20 @@
             note.Tasks.Add(new OneTask());
         }
     }
+    
+    
+    private async Task RemoveTaskFromDetails(OneTask task)
+    {
+        if (note!.Tasks.Count == 1)
+        {
+            await DeleteNote();
+        }
+        else
+        {
+            note!.Tasks.Remove(task);
+        }
+    }
+    
     
     private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
     {
