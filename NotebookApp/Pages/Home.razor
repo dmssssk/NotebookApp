@@ -54,7 +54,9 @@
                 <option value="Tasks">список</option>
                 <option value="Text">текст</option>
             </select>
+        </div>
             
+        <div class="mb-2">
             <select class="form-select" @bind="newTag">
                 @foreach (var tag in availableTags)
                 {
@@ -79,11 +81,8 @@
             </div>
         }
         else
-        {   
-            
-            
-            
-            
+        {
+
             
             <div class="mb-3">
                 <label class="form-label fw-bold mb-2">Задачи списка</label>
@@ -91,13 +90,12 @@
                     @foreach (var task in newTasks)
                     {
                         <div class="d-flex align-items-center gap-2">
-                            <button type="button" 
-                                    class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
-                                    style="width: 24px; height: 24px;" 
+                            <button type="button"
+                                    class="invisible-btn"
                                     @onclick="() => task.IsCompleted = !task.IsCompleted">
-                                <span style="font-size: 12px;">@(task.IsCompleted ? "✅" : "⬜")</span>
+                                <span>@(task.IsCompleted ? "✅" : "⬜")</span>
                             </button>
-                
+                            
                             <input type="text" 
                                    class="form-control border-secondary" 
                                    placeholder="Текст задачи..." 
@@ -105,9 +103,11 @@
                                    @bind:event="oninput"
                                    @onkeydown="(e) => HandleTaskKeyDown(e, task)" />
                 
-                            <button type="button" 
-                                    class="btn btn-link text-danger p-0 text-decoration-none" 
-                                    @onclick="() => RemoveTaskFromCreate(task)">❌</button>
+                            <button type="button"
+                                    class="invisible-btn"
+                                    @onclick="() => RemoveTaskFromCreate(task)">
+                                <span>❌</span>
+                            </button>
                         </div>
                     }
                 </div>
@@ -116,13 +116,6 @@
                     💡 Нажмите <kbd>Enter</kbd> внутри любого поля, чтобы добавить новую задачу.
                 </small>
             </div>
-            
-            
-            
-            
-            
-            
-            
             
             
             

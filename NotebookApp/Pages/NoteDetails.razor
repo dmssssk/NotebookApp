@@ -72,7 +72,11 @@
                             @foreach (var task in note.Tasks)
                             {
                                 <div class="d-flex align-items-center gap-2">
-                                    <span class="fs-5 text-secondary">⬜</span>
+                                    <button type="button"
+                                            class="invisible-btn"
+                                            @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                        <span>@(task.IsCompleted ? "✅" : "⬜")</span>
+                                    </button>
                     
                                     <input type="text" 
                                            class="form-control border-secondary" 
@@ -82,8 +86,10 @@
                                            @onkeydown="(e) => HandleEditTaskKeyDown(e, task)" />
                     
                                     <button type="button"
-                                            class="btn btn-link text-danger p-0 text-decoration-none"
-                                            @onclick="() => RemoveTaskFromEdit(task)">❌</button>
+                                            class="invisible-btn"
+                                            @onclick="() => RemoveTaskFromEdit(task)">
+                                        <span>❌</span>
+                                    </button>
                                 </div>
                             }
                         </div>
@@ -135,11 +141,10 @@
                     foreach (var task in note.Tasks)
                     {
                         <div class="d-flex align-items-center gap-2 py-1">
-                            <button type="button" 
-                                    class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
-                                    style="width: 24px; height: 24px;" 
+                            <button type="button"
+                                    class="invisible-btn"
                                     @onclick="() => task.IsCompleted = !task.IsCompleted">
-                                <span style="font-size: 12px;">@(task.IsCompleted ? "✅" : "⬜")</span>
+                                <span>@(task.IsCompleted ? "✅" : "⬜")</span>
                             </button>
                 
                             <span class="flex-grow-1 fs-5" 
@@ -150,9 +155,11 @@
                                 @task.Text
                             </span>
 
-                            <button type="button" 
-                                    class="btn btn-link text-danger p-0 text-decoration-none" 
-                                    @onclick="() => RemoveTaskFromEdit(task)">❌</button>
+                            <button type="button"
+                                    class="invisible-btn"
+                                    @onclick="() => RemoveTaskFromEdit(task)">
+                                <span>❌</span>
+                            </button>
                         </div>
                     }
                 }
