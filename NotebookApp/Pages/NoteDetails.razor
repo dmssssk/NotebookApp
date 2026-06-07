@@ -117,7 +117,7 @@
 @code {
     [Parameter] public Guid Id { get; set; } // Принимаем ID из URL
 
-    private Note? note;
+    private INote? note;
     private List<Note> allNotes = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 

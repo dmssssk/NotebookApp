@@ -48,6 +48,12 @@
         </div>
 
         <div class="mb-2">
+            
+            <select class="form-select" @bind="_noteType">
+                <option value="Tasks">список</option>
+                <option value="Text">текст</option>
+            </select>
+            
             <select class="form-select" @bind="newTag">
                 @foreach (var tag in availableTags)
                 {
@@ -65,12 +71,65 @@
             </div>
         </div>
         
-        <div class="mb-2">
-            <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
-        </div>
-        <button class="btn btn-primary w-100" @onclick="AddNote">
-            Добавить заметку
-        </button>
+        @if (_noteType == NoteType.Text)
+        {
+            <div class="mb-2">
+                <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
+            </div>
+        }
+        else
+        {   
+            
+            <div class="mb-2 form-control" style="min-height: 120px; background-color: var(--bs-body-bg); padding: 0.5rem;">
+                
+                @foreach (var task in newTasks)
+                {
+                    <div class="d-flex align-items-center mb-2 gap-2">
+                        
+                        <input type="text" 
+                               class="form-control border-0 shadow-none p-0 bg-transparent flex-grow-1" 
+                               placeholder="Текст задачи..."
+                               @bind="task.Text" 
+                               @bind:event="oninput" 
+                               @onkeydown="@(e => HandleTaskKeyDown(e))" />
+                        
+                        <button type="button" class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
+                                style="width: 24px; height: 24px;">
+                            <span style="font-size: 12px;">⬜</span>
+                        </button>
+                        
+                        <button type="button" class="btn btn-link text-danger p-0 text-decoration-none" 
+                                tabindex="-1"
+                                @onclick="() => { 
+                                    if (newTasks.Count > 1) { 
+                                        newTasks.Remove(task);
+                                    }
+                                }">❌</button>
+                    </div>
+                }
+            </div>
+
+            
+            
+            
+            
+            
+            
+            
+        }
+        @if (_noteType == NoteType.Text)
+        {
+            <button class="btn btn-primary w-100" @onclick="AddNote">
+                Добавить заметку
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-primary w-100" @onclick="SaveTaskList">
+                Добавить список
+            </button>
+        }
+
     </div>
 
     <!-- Список заметок -->
@@ -143,10 +202,19 @@
                                     }
                                 </div>
                             </div>
+                            @if (note.Type == NoteType.Text)
+                            {
+                                <p class="card-text text-secondary" style="white-space: pre-wrap;">
+                                    @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="card-text text-secondary" style="white-space: pre-wrap;">
+                                    @(note.Tasks[0].Text.Length > 150 ? note.Tasks[0].Text.Substring(0, 150) + "..." : note.Content)
+                                </p>
+                            }
 
-                            <p class="card-text text-secondary" style="white-space: pre-wrap;">
-                                @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
-                            </p>
 
 
                             <small class="text-muted d-block mt-2">🕒 @note.CreatedAt.ToString("g")</small>
@@ -171,30 +239,89 @@
 
 @code {
     private List<Note> notes = new();
+    private List<NoteTask> noteTasks = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
+    private List<OneTask> newTasks = new() { new OneTask() };
+    
     private string newTitle = "";
     private string newContent = "";
+    private NoteType _noteType = NoteType.Text;
     private string newTag = "Без тега";
     private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
+    private string _newTaskText = "";
     private bool TitleIsIncorrect;
     
     private CalendarWindow ModalWindow { get; set; } = null!;
 
     private DateParser _dateParser = new();
     
+    
+    
+    
+    
 
-    private IEnumerable<Note> FilteredNotes
+    // Список задач. Сразу инициализируем одной пустой задачей, чтобы было куда писать
+
+    // Обработка нажатия клавиш в поле задачи
+    private void HandleTaskKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            // При нажатии Enter просто добавляем новую пустую строку вниз
+            newTasks.Add(new OneTask());
+        }
+    }
+
+    private async Task SaveTaskList()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            TitleIsIncorrect = true;
+            return;
+        }
+
+        TitleIsIncorrect = false;
+
+        if (newTasks.Count < 1)
+        {
+            return;
+        }
+        
+        var dates = _dateParser.ParseDates(newContent);
+        
+        noteTasks.Add(new NoteTask {Title = newTitle, Tasks = newTasks, Tag = newTag , Dates = dates, Color = newNoteColor});
+
+        await LocalStorage.SetItemAsync("my_tasks", noteTasks);
+        
+        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff"; newTasks.Clear(); newTasks.Add( new OneTask() );
+        
+    }
+
+    private async Task UpdateLists()
+    {
+        await LocalStorage.SetItemAsync("my_tasks", noteTasks);
+        await LocalStorage.SetItemAsync("my_notes", notes);
+        
+    }
+    
+    
+
+    private IEnumerable<INote> FilteredNotes
     {
         get
         {
+            List<INote> notesSoup = new();
+            notesSoup.AddRange(notes);
+            notesSoup.AddRange(noteTasks);
+            
             if (string.IsNullOrWhiteSpace(SearchString))
             {
-                return notes.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
+                return notesSoup.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
             }
 
-            return notes
+            return notesSoup
                 .Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
                             n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
@@ -255,14 +382,14 @@
     }
 
 
-    private async Task Pin(Note note, bool pin)
+    private async Task Pin(INote note, bool pin)
     {
         note.IsPinned = pin;
         await LocalStorage.SetItemAsync("my_notes", notes);
     }
     
     
-    private async Task Star(Note note, bool star)
+    private async Task Star(INote note, bool star)
     {
         note.Star = star;
         await LocalStorage.SetItemAsync("my_notes", notes);
@@ -276,27 +403,27 @@
 
     private async Task AddNote()
     {
-        if (string.IsNullOrWhiteSpace(newTitle))
-        {
-            TitleIsIncorrect = true;
-            return;
-        }
+            if (string.IsNullOrWhiteSpace(newTitle))
+            {
+                TitleIsIncorrect = true;
+                return;
+            }
 
-        TitleIsIncorrect = false;
+            TitleIsIncorrect = false;
         
         
-        var dates = _dateParser.ParseDates(newContent);
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
-        notes.Add(note);
-        await LocalStorage.SetItemAsync("my_notes", notes);
-        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
+            var dates = _dateParser.ParseDates(newContent);
+            var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
+            notes.Add(note);
+            await LocalStorage.SetItemAsync("my_notes", notes);
+            newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
         
 
-        if (dates.Count != 0)
-        {
-            ModalWindow.OpenModal(note);
-        }
-
+            if (dates.Count != 0)
+            {
+                ModalWindow.OpenModal(note);
+            }
+        
     }
     
     // Отписывает страницу от обновлений, когда пользователь уходит на другую вкладку
