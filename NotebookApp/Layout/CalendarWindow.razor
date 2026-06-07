@@ -45,6 +45,7 @@
     
     private Note? _lastNote;
     private DateParser _dateParser = new();
+    
 
     // Переменная состояния окна (скрыто/показано)
     private bool _isModalVisible = false;
@@ -93,12 +94,7 @@
                 {
                     await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(_lastNote.Title, dateEvent.Date, dateEvent.Event), "_blank");
                 }
-
-                
-
             }
-
-            
         }
 
         CloseModal();
