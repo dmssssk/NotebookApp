@@ -16,6 +16,7 @@ public class Note
     public List<DateTime> Dates { get; set; } = new();
     public bool Star { get; set; }
     public bool IsAddedToCalendar { get; set; }
+    public List<DateEvent> DateEvents { get; set; } = new();
     
 }
 
@@ -32,3 +33,5 @@ public enum NoteType
     Text,
     Tasks
 }
+
+public record DateEvent(DateTime Date, string Event);

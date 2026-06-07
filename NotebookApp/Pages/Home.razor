@@ -229,7 +229,7 @@
                                         <span>@(note.Tasks[i].IsCompleted ? "✅" : "⬜")</span>
                                     </button>
                                     
-                                    <span class="card-text text-secondary" style="white-space: pre-wrap;">
+                                    <span class="card-text text-secondary" style="white-space: pre-wrap; text-decoration: @(note.Tasks[i].IsCompleted ? "line-through" : "none");">
                                         @(note.Tasks[i].Text.Length > 50 ? note.Tasks[i].Text.Substring(0, 50) + "..." : note.Tasks[i].Text)
                                     </span>
                                     <br>
@@ -346,19 +346,41 @@
         }
 
         _isIncorrectTasks = false;
+
+        List<DateEvent> dateEvents = [];
         
-        var dates = _dateParser.ParseDates(newContent);
         
-        notes.Add(new Note {Type = NoteType.Tasks, 
-            Title = newTitle, 
-            Tasks = new List<OneTask>(string.IsNullOrEmpty(newTasks[^1].Text)?newTasks[..^1]:newTasks), 
+        foreach (var task in newTasks)
+        {
+            foreach (var date in _dateParser.ParseDates(task.Text))
+            {
+                dateEvents.Add(new DateEvent(date, task.Text));
+                
+            }
+        }
+
+
+
+        var note = new Note
+        {
+            Type = NoteType.Tasks,
+            Title = newTitle,
+            Tasks = new List<OneTask>(string.IsNullOrEmpty(newTasks[^1].Text) ? newTasks[..^1] : newTasks),
             Tag = newTag,
-            Dates = dates, 
-            Color = newNoteColor});
+            DateEvents = dateEvents,
+            Color = newNoteColor
+        };
+
+        notes.Add(note);
 
         await LocalStorage.SetItemAsync("my_notes", notes);
         
         newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff"; newTasks.Clear(); newTasks.Add( new OneTask() );
+        
+        if (dateEvents.Count != 0)
+        {
+            ModalWindow.OpenModal(note);
+        }
         
     }
 

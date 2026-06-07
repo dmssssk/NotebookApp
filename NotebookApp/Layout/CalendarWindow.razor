@@ -60,24 +60,44 @@
 
     private void CloseModal() => _isModalVisible = false;
 
+
+
     private async Task HandleConfirmWin()
     {
         if (_lastNote != null)
         {
-            var dates = _dateParser.ParseDates(_lastNote.Content);
-            _lastNote.IsAddedToCalendar = true;
-            
-            var noteIndex = Notes.FindIndex(n => n.Id == _lastNote.Id);
-            if (noteIndex != -1)
+
+
+            if (_lastNote.Type == NoteType.Text)
             {
-                Notes[noteIndex] = _lastNote;
-                await NotesChanged.InvokeAsync(Notes);
+                var dates = _dateParser.ParseDates(_lastNote.Content);
+                _lastNote.IsAddedToCalendar = true;
+            
+                var noteIndex = Notes.FindIndex(n => n.Id == _lastNote.Id);
+                if (noteIndex != -1)
+                {
+                    Notes[noteIndex] = _lastNote;
+                    await NotesChanged.InvokeAsync(Notes);
+                }
+
+                foreach (var date in dates)
+                {
+                    await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(_lastNote, date), "_blank");
+                }
             }
 
-            foreach (var date in dates)
+            else
             {
-                await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(_lastNote, date), "_blank");
+
+                foreach (var dateEvent in _lastNote.DateEvents)
+                {
+                    await JsRuntime.InvokeVoidAsync("open", GoogleCalendar.LinkToGoogleCalendar(_lastNote.Title, dateEvent.Date, dateEvent.Event), "_blank");
+                }
+
+                
+
             }
+
             
         }
 
@@ -88,17 +108,37 @@
     {
         if (_lastNote != null)
         {
-            var dates = _dateParser.ParseDates(_lastNote.Content);
-            _lastNote.IsAddedToCalendar = true;
-            
-            var noteIndex = Notes.FindIndex(n => n.Id == _lastNote.Id);
-            if (noteIndex != -1)
+
+
+            if (_lastNote.Type == NoteType.Text)
             {
-                Notes[noteIndex] = _lastNote;
-                await NotesChanged.InvokeAsync(Notes);
+                var dates = _dateParser.ParseDates(_lastNote.Content);
+                _lastNote.IsAddedToCalendar = true;
+            
+                var noteIndex = Notes.FindIndex(n => n.Id == _lastNote.Id);
+                if (noteIndex != -1)
+                {
+                    Notes[noteIndex] = _lastNote;
+                    await NotesChanged.InvokeAsync(Notes);
+                }
+
+                await JsRuntime.InvokeVoidAsync("downloadIcsFile", "NotebookAppEvents.ics", AppleCalendar.AppleCalendarFile(_lastNote, dates));
             }
 
-            await JsRuntime.InvokeVoidAsync("downloadIcsFile", "NotebookAppEvents.ics", AppleCalendar.AppleCalendarFile(_lastNote, dates));
+            else
+            {
+                
+                
+                
+            }
+
+            
+            
+            
+            
+            
+            
+            
         }
 
         CloseModal();
