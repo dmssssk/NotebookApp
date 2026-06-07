@@ -1,8 +1,7 @@
 namespace NotebookApp.Models;
 
-public class Note : INote
+public class Note
 {
-    
     
     public NoteType Type { get; set; } =  NoteType.Text;
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -17,4 +16,19 @@ public class Note : INote
     public List<DateTime> Dates { get; set; } = new();
     public bool Star { get; set; }
     public bool IsAddedToCalendar { get; set; }
+    
+}
+
+
+public class OneTask
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Text { get; set; } = string.Empty;
+    public bool IsCompleted { get; set; }
+}
+
+public enum NoteType
+{
+    Text,
+    Tasks
 }

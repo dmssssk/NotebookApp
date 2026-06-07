@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject ThemeService Theme
 @implements IDisposable
+@using System.Net.Mime
 @using NotebookApp.Utils
 
 <PageTitle>Мои Заметки</PageTitle>
@@ -211,7 +212,7 @@
                             else
                             {
                                 <p class="card-text text-secondary" style="white-space: pre-wrap;">
-                                    @(note.Tasks[0].Text.Length > 150 ? note.Tasks[0].Text.Substring(0, 150) + "..." : note.Content)
+                                    @(note.Tasks[0].Text.Length > 150 ? note.Tasks[0].Text.Substring(0, 150) + "..." : note.Tasks[0].Text)
                                 </p>
                             }
 
@@ -239,7 +240,7 @@
 
 @code {
     private List<Note> notes = new();
-    private List<NoteTask> noteTasks = new();
+    // private List<Note> noteTasks = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
     private List<OneTask> newTasks = new() { new OneTask() };
@@ -250,7 +251,7 @@
     private string newTag = "Без тега";
     private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
-    private string _newTaskText = "";
+    // private string _newTaskText = "";
     private bool TitleIsIncorrect;
     
     private CalendarWindow ModalWindow { get; set; } = null!;
@@ -270,7 +271,9 @@
         if (e.Key == "Enter")
         {
             // При нажатии Enter просто добавляем новую пустую строку вниз
+            // newTasks[^1].Text = _newTaskText;
             newTasks.Add(new OneTask());
+            // _newTaskText = "";
         }
     }
 
@@ -291,37 +294,42 @@
         
         var dates = _dateParser.ParseDates(newContent);
         
-        noteTasks.Add(new NoteTask {Title = newTitle, Tasks = newTasks, Tag = newTag , Dates = dates, Color = newNoteColor});
+        notes.Add(new Note {Type = NoteType.Tasks, 
+            Title = newTitle, 
+            Tasks = new List<OneTask>(newTasks), 
+            Tag = newTag,
+            Dates = dates, 
+            Color = newNoteColor});
 
-        await LocalStorage.SetItemAsync("my_tasks", noteTasks);
+        await LocalStorage.SetItemAsync("my_notes", notes);
         
         newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff"; newTasks.Clear(); newTasks.Add( new OneTask() );
         
     }
 
-    private async Task UpdateLists()
-    {
-        await LocalStorage.SetItemAsync("my_tasks", noteTasks);
-        await LocalStorage.SetItemAsync("my_notes", notes);
-        
-    }
+    // private async Task UpdateLists()
+    // {
+    //     await LocalStorage.SetItemAsync("my_tasks", noteTasks);
+    //     await LocalStorage.SetItemAsync("my_notes", notes);
+    //     
+    // }
     
     
 
-    private IEnumerable<INote> FilteredNotes
+    private IEnumerable<Note> FilteredNotes
     {
         get
         {
-            List<INote> notesSoup = new();
-            notesSoup.AddRange(notes);
-            notesSoup.AddRange(noteTasks);
+            // List<Note> notesSoup = new();
+            // notesSoup.AddRange(notes);
+            // notesSoup.AddRange(noteTasks);
             
             if (string.IsNullOrWhiteSpace(SearchString))
             {
-                return notesSoup.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
+                return notes.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
             }
 
-            return notesSoup
+            return notes
                 .Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
                             n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
                 .OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
@@ -382,14 +390,14 @@
     }
 
 
-    private async Task Pin(INote note, bool pin)
+    private async Task Pin(Note note, bool pin)
     {
         note.IsPinned = pin;
         await LocalStorage.SetItemAsync("my_notes", notes);
     }
     
     
-    private async Task Star(INote note, bool star)
+    private async Task Star(Note note, bool star)
     {
         note.Star = star;
         await LocalStorage.SetItemAsync("my_notes", notes);

@@ -57,10 +57,42 @@
                         }
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label font-weight-bold">Текст заметки</label>
-                    <textarea class="form-control" rows="8" @bind="editContent"></textarea>
-                </div>
+                @if (note.Type == NoteType.Text)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Текст заметки</label>
+                        <textarea class="form-control border-secondary" rows="6" @bind="note.Content"></textarea>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">Задачи списка</label>
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var task in note.Tasks)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fs-5 text-secondary">⬜</span>
+                    
+                                    <input type="text" 
+                                           class="form-control border-secondary" 
+                                           placeholder="Текст задачи..." 
+                                           @bind="task.Text" 
+                                           @bind:event="oninput"
+                                           @onkeydown="(e) => HandleEditTaskKeyDown(e, task)" />
+                    
+                                    <button type="button"
+                                            class="btn btn-link text-danger p-0 text-decoration-none"
+                                            @onclick="() => RemoveTaskFromEdit(task)">❌</button>
+                                </div>
+                            }
+                        </div>
+        
+                        <small class="text-secondary d-block mt-2">
+                            💡 Нажмите <kbd>Enter</kbd> внутри любого поля, чтобы добавить новую задачу.
+                        </small>
+                    </div>
+                }
                 <div class="d-flex gap-2 justify-content-end">
                     <button class="btn btn-success" @onclick="SaveEdit" disabled="@(string.IsNullOrWhiteSpace(editTitle))">💾 Сохранить</button>
                     <button class="btn btn-secondary" @onclick="CancelEdit">❌ Отмена</button>
@@ -91,8 +123,44 @@
                 </div>
 
                 <!-- Полный текст заметки -->
-                <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
+                @if (note.Type == NoteType.Text)
+                {
+                    
+                    <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
 
+
+                    
+                    
+                }
+
+                else
+                {
+                    foreach (var task in note.Tasks)
+                    {
+                        <div class="d-flex align-items-center gap-2 py-1">
+                            <button type="button" 
+                                    class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
+                                    style="width: 24px; height: 24px;" 
+                                    @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                <span style="font-size: 12px;">@(task.IsCompleted ? "✅" : "⬜")</span>
+                            </button>
+                
+                            <span class="flex-grow-1 fs-5" 
+                                  style="white-space: pre-wrap; 
+                             color: var(--bs-body-color) !important; 
+                             text-decoration: @(task.IsCompleted ? "line-through" : "none");
+                             opacity: @(task.IsCompleted ? "0.6" : "1");">
+                                @task.Text
+                            </span>
+
+                            <button type="button" 
+                                    class="btn btn-link text-danger p-0 text-decoration-none" 
+                                    @onclick="() => note.Tasks.Remove(task)">❌</button>
+                        </div>
+                    }
+                }
+                
+                
                 <div class="text-muted mt-4 pt-2 border-top fs-6">
                     🕒 Дата создания: @note.CreatedAt.ToString("F")
                     <br />
@@ -106,6 +174,7 @@
                     }
                 </div>
 
+
             }
         </div>
     }
@@ -117,7 +186,7 @@
 @code {
     [Parameter] public Guid Id { get; set; } // Принимаем ID из URL
 
-    private INote? note;
+    private Note? note;
     private List<Note> allNotes = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
@@ -148,7 +217,39 @@
             note = allNotes.FirstOrDefault(n => n.Id == Id);
         }
     }
+    
+    
+    private void RemoveTaskFromEdit(OneTask task)
+    {
+        note.Tasks.Remove(task);
+    
+        // Если удалили вообще все задачи, оставим одну пустую строку, чтобы поле не исчезало
+        if (!note.Tasks.Any())
+        {
+            note.Tasks.Add(new OneTask());
+        }
+    }
+    
+    
+    private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+    {
+        if (e.Key == "Enter")
+        {
+            // Ищем индекс текущей задачи, чтобы вставить новую строку сразу после неё
+            int index = note.Tasks.IndexOf(currentTask);
+            if (index != -1)
+            {
+                note.Tasks.Insert(index + 1, new OneTask());
+            }
+            else
+            {
+                note.Tasks.Add(new OneTask());
+            }
+        }
+    }
 
+    
+    
     private void StartEdit()
     {
         if (note == null) return;
