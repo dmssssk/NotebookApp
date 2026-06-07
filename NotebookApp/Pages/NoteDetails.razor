@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject ThemeService Theme
 @using NotebookApp.Utils
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -85,6 +86,7 @@
                                     <input type="text" 
                                            class="form-control border-secondary" 
                                            style="min-width: 0;"
+                                           id="@($"task-{task.Id}")"
                                            placeholder="Текст задачи..." 
                                            @bind="task.Text" 
                                            @bind:event="oninput"
@@ -263,7 +265,7 @@
     
     
     
-    private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+    private async Task HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
     {
         if (note!.Tasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
         {
@@ -274,10 +276,15 @@
         if (e.Key == "Enter")
         {
             if (note!.Tasks.Any(t => string.IsNullOrWhiteSpace(t.Text))) return;
-
+            var task = new OneTask();
             int index = note!.Tasks.IndexOf(currentTask);
-            if (index != -1) note!.Tasks.Insert(index + 1, new OneTask());
-            else note!.Tasks.Add(new OneTask());
+            if (index != -1) note!.Tasks.Insert(index + 1, task);
+            else note!.Tasks.Add(task);
+            
+            await Task.Delay(20);
+            
+            await JsRuntime.InvokeVoidAsync("focusElement", $"task-{task.Id}");
+            
         }
     }
 

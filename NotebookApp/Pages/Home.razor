@@ -5,6 +5,7 @@
 @implements IDisposable
 @using System.Net.Mime
 @using NotebookApp.Utils
+@inject IJSRuntime JsRuntime
 
 <PageTitle>Мои Заметки</PageTitle>
 
@@ -100,9 +101,10 @@
                                 <span>@(task.IsCompleted ? "✅" : "⬜")</span>
                             </button>
                             
-                            <input type="text" 
+                            <input type="text"
                                    class="form-control border-secondary" 
                                    style="min-width: 0;"
+                                   id="@($"task-{task.Id}")"
                                    placeholder="Текст задачи..." 
                                    @bind="task.Text" 
                                    @bind:event="oninput"
@@ -271,6 +273,16 @@
     private List<OneTask> newTasks = new() { new OneTask() };
     private bool _isIncorrectTasks;
     
+    
+    private Dictionary<OneTask, ElementReference> taskInputs = new();
+    private OneTask? taskToFocus;
+    
+    private void RegisterInput(OneTask task, ElementReference element)
+    {
+        taskInputs[task] = element;
+    }
+    
+    
     private string newTitle = "";
     private string newContent = "";
     private NoteType _noteType = NoteType.Text;
@@ -295,7 +307,7 @@
         }
     }
     
-        private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+        private async Task HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
     {
         if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
         {
@@ -305,10 +317,15 @@
         if (e.Key == "Enter")
         {
             if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text))) return;
-
+            var task = new OneTask();
             int index = newTasks.IndexOf(currentTask);
-            if (index != -1) newTasks.Insert(index + 1, new OneTask());
-            else newTasks.Add(new OneTask());
+            if (index != -1) newTasks.Insert(index + 1, task);
+            else newTasks.Add(task);
+
+            await Task.Delay(20);
+            
+            await JsRuntime.InvokeVoidAsync("focusElement", $"task-{task.Id}");
+            
         }
     }
 
