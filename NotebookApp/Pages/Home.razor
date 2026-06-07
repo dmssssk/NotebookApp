@@ -81,35 +81,46 @@
         else
         {   
             
-            <div class="mb-2 form-control" style="min-height: 120px; background-color: var(--bs-body-bg); padding: 0.5rem;">
+            
+            
+            
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold mb-2">Задачи списка</label>
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var task in newTasks)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" 
+                                    class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
+                                    style="width: 24px; height: 24px;" 
+                                    @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                <span style="font-size: 12px;">@(task.IsCompleted ? "✅" : "⬜")</span>
+                            </button>
                 
-                @foreach (var task in newTasks)
-                {
-                    <div class="d-flex align-items-center mb-2 gap-2">
-                        
-                        <input type="text" 
-                               class="form-control border-0 shadow-none p-0 bg-transparent flex-grow-1" 
-                               placeholder="Текст задачи..."
-                               @bind="task.Text" 
-                               @bind:event="oninput" 
-                               @onkeydown="@(e => HandleTaskKeyDown(e))" />
-                        
-                        <button type="button" class="btn btn-outline-secondary d-flex align-items-center justify-content-center p-0" 
-                                style="width: 24px; height: 24px;">
-                            <span style="font-size: 12px;">⬜</span>
-                        </button>
-                        
-                        <button type="button" class="btn btn-link text-danger p-0 text-decoration-none" 
-                                tabindex="-1"
-                                @onclick="() => { 
-                                    if (newTasks.Count > 1) { 
-                                        newTasks.Remove(task);
-                                    }
-                                }">❌</button>
-                    </div>
-                }
+                            <input type="text" 
+                                   class="form-control border-secondary" 
+                                   placeholder="Текст задачи..." 
+                                   @bind="task.Text" 
+                                   @bind:event="oninput"
+                                   @onkeydown="(e) => HandleTaskKeyDown(e, task)" />
+                
+                            <button type="button" 
+                                    class="btn btn-link text-danger p-0 text-decoration-none" 
+                                    @onclick="() => RemoveTaskFromCreate(task)">❌</button>
+                        </div>
+                    }
+                </div>
+    
+                <small class="text-secondary d-block mt-2">
+                    💡 Нажмите <kbd>Enter</kbd> внутри любого поля, чтобы добавить новую задачу.
+                </small>
             </div>
-
+            
+            
+            
+            
+            
             
             
             
@@ -240,7 +251,6 @@
 
 @code {
     private List<Note> notes = new();
-    // private List<Note> noteTasks = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
     private List<OneTask> newTasks = new() { new OneTask() };
@@ -251,7 +261,6 @@
     private string newTag = "Без тега";
     private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
-    // private string _newTaskText = "";
     private bool TitleIsIncorrect;
     
     private CalendarWindow ModalWindow { get; set; } = null!;
@@ -259,21 +268,37 @@
     private DateParser _dateParser = new();
     
     
-    
-    
-    
-
-    // Список задач. Сразу инициализируем одной пустой задачей, чтобы было куда писать
-
-    // Обработка нажатия клавиш в поле задачи
-    private void HandleTaskKeyDown(KeyboardEventArgs e)
+    private void RemoveTaskFromCreate(OneTask task)
     {
+        newTasks.Remove(task);
+    
+        // Если удалили вообще все строки, оставим одну пустую, чтобы было где писать
+        if (!newTasks.Any())
+        {
+            newTasks.Add(new OneTask());
+        }
+    }
+    
+    
+    
+    private void HandleTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+    {
+        if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
+        {
+            return;
+        }
+        
         if (e.Key == "Enter")
         {
-            // При нажатии Enter просто добавляем новую пустую строку вниз
-            // newTasks[^1].Text = _newTaskText;
-            newTasks.Add(new OneTask());
-            // _newTaskText = "";
+            int index = newTasks.IndexOf(currentTask);
+            if (index != -1)
+            {
+                newTasks.Insert(index + 1, new OneTask());
+            }
+            else
+            {
+                newTasks.Add(new OneTask());
+            }
         }
     }
 
@@ -307,23 +332,11 @@
         
     }
 
-    // private async Task UpdateLists()
-    // {
-    //     await LocalStorage.SetItemAsync("my_tasks", noteTasks);
-    //     await LocalStorage.SetItemAsync("my_notes", notes);
-    //     
-    // }
-    
-    
 
     private IEnumerable<Note> FilteredNotes
     {
         get
         {
-            // List<Note> notesSoup = new();
-            // notesSoup.AddRange(notes);
-            // notesSoup.AddRange(noteTasks);
-            
             if (string.IsNullOrWhiteSpace(SearchString))
             {
                 return notes.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);

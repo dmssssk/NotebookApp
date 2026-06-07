@@ -128,9 +128,6 @@
                     
                     <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
 
-
-                    
-                    
                 }
 
                 else
@@ -155,7 +152,7 @@
 
                             <button type="button" 
                                     class="btn btn-link text-danger p-0 text-decoration-none" 
-                                    @onclick="() => note.Tasks.Remove(task)">❌</button>
+                                    @onclick="() => RemoveTaskFromEdit(task)">❌</button>
                         </div>
                     }
                 }
@@ -196,7 +193,6 @@
     private string editTag = "Без тега";
     private string editColor = "#ffffff";
     private DateParser _dateParser = new DateParser();
-
     
     private CalendarWindow ModalWindow { get; set; } = null!;
     
@@ -218,7 +214,6 @@
         }
     }
     
-    
     private void RemoveTaskFromEdit(OneTask task)
     {
         note.Tasks.Remove(task);
@@ -230,9 +225,13 @@
         }
     }
     
-    
     private void HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
     {
+        if (note.Tasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
+        {
+            return;
+        }
+        
         if (e.Key == "Enter")
         {
             // Ищем индекс текущей задачи, чтобы вставить новую строку сразу после неё
@@ -301,7 +300,12 @@
         Navigation.NavigateTo("/"); // Перенаправляем на главную
     }
 
-    private void GoBack() => Navigation.NavigateTo("/");
+    private async Task GoBack()
+    {
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+
+        Navigation.NavigateTo("/");
+    }
 
     // Метод выбора цвета, адаптирующийся под темную и светлую темы
     private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch
