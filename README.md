@@ -16,6 +16,7 @@
 ## 🛠️ Технологии
 
 - **Фреймворк**: Blazor WebAssembly (WASM) Standalone
+- **Язык разметки**: Razor (смесь чистого HTML5 и C#)
 - **Хранение данных**: `localStorage`
 - **Стили**: Bootstrap
 - **Версионирование**: GitHub
