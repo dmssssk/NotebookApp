@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject ThemeService Theme
 @using NotebookApp.Utils
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -25,7 +26,10 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h4 class="mb-0">Редактирование заметки</h4>
                     <!-- Приписка об обязательности заголовка -->
-                    <small class="text-danger fw-bold">* Заголовок обязателен для заполнения</small>
+                    @if (_isIncorrectTitle)
+                    {
+                        <small class="text-danger fw-bold">* Заголовок обязателен для заполнения</small>
+                    }
                 </div>
                 
                 <div class="mb-3 d-flex align-items-center gap-2">
@@ -57,12 +61,65 @@
                         }
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label font-weight-bold">Текст заметки</label>
-                    <textarea class="form-control" rows="8" @bind="editContent"></textarea>
-                </div>
+                @if (note.Type == NoteType.Text)
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Текст заметки</label>
+                        <textarea class="form-control border-secondary" rows="6" @bind="editContent"></textarea>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label fw-bold mb-2">Задачи списка</label>
+                        @if (_isIncorrectTasks)
+                        {
+                            <small class="text-danger fw-bold right-side" style="margin-right: 10px">* для создания списка должен быть хоть одна заполненная задача</small>
+                        }
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var task in note.Tasks)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button"
+                                            class="invisible-btn"
+                                            @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                        <span>@(task.IsCompleted ? "✅" : "⬜")</span>
+                                    </button>
+                    
+                                    <input type="text" 
+                                           class="form-control border-secondary" 
+                                           style="min-width: 0;"
+                                           id="@($"task-{task.Id}")"
+                                           placeholder="Текст задачи..." 
+                                           @bind="task.Text" 
+                                           @bind:event="oninput"
+                                           @onkeydown="(e) => HandleEditTaskKeyDown(e, task)" 
+                                           @onkeyup="(e) => HandleEditTaskKeyUp(e, task)" />
+                    
+                                    <button type="button"
+                                            title="удалить"
+                                            class="invisible-btn"
+                                            @onclick="() => RemoveTaskFromEdit(task)">
+                                        <span>❌</span>
+                                    </button>
+                                </div>
+                            }
+                        </div>
+        
+                        <small class="text-secondary d-block mt-2">
+                            💡 Нажмите <kbd>Enter</kbd> внутри любого поля, чтобы добавить новую задачу.
+                        </small>
+                    </div>
+                }
                 <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-success" @onclick="SaveEdit" disabled="@(string.IsNullOrWhiteSpace(editTitle))">💾 Сохранить</button>
+                    @if (note.Type == NoteType.Text)
+                    {
+                        <button class="btn btn-success" @onclick="SaveEditText">💾 Сохранить</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-success" @onclick="SaveEditTasks">💾 Сохранить</button>
+                    }
                     <button class="btn btn-secondary" @onclick="CancelEdit">❌ Отмена</button>
                 </div>
             }
@@ -92,8 +149,44 @@
                 </div>
 
                 <!-- Полный текст заметки -->
-                <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
+                @if (note.Type == NoteType.Text)
+                {
+                    <p class="text-dark fs-5" style="white-space: pre-wrap; color: var(--bs-body-color) !important;">@note.Content</p>
+                }
 
+                else
+                {
+                    foreach (var task in note.Tasks)
+                    {
+                        <div class="d-flex align-items-center gap-2 py-1">
+                            <button type="button"
+                                    class="invisible-btn"
+                                    @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                <span>@(task.IsCompleted ? "✅" : "⬜")</span>
+                            </button>
+                
+                            <span class="flex-grow-1 fs-5" 
+                                  style="white-space: pre-wrap;
+                                  word-break: break-word;
+                                  overflow-wrap: break-word;
+                                  min-width: 0;
+                                  color: var(--bs-body-color) !important; 
+                                  text-decoration: @(task.IsCompleted ? "line-through" : "none");
+                                  opacity: @(task.IsCompleted ? "0.6" : "1");">
+                                @task.Text
+                            </span>
+
+                            <button type="button"
+                                    class="invisible-btn"
+                                    title="удалить"
+                                    @onclick="() => RemoveTaskFromDetails(task)">
+                                <span>❌</span>
+                            </button>
+                        </div>
+                    }
+                }
+                
+                
                 <div class="text-muted mt-4 pt-2 border-top fs-6">
                     🕒 Дата создания: @note.CreatedAt.ToString("F")
                     <br />
@@ -106,6 +199,7 @@
                         </span>
                     }
                 </div>
+
 
             }
         </div>
@@ -122,13 +216,16 @@
     private List<Note> allNotes = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
+
+    bool _isIncorrectTasks;
+    private bool _isIncorrectTitle;
+    
     private bool isEditing = false;
     private string editTitle = "";
     private string editContent = "";
     private string editTag = "Без тега";
     private string editColor = "#ffffff";
     private DateParser _dateParser = new DateParser();
-
     
     private CalendarWindow ModalWindow { get; set; } = null!;
     
@@ -149,7 +246,76 @@
             note = allNotes.FirstOrDefault(n => n.Id == Id);
         }
     }
+    
+    private void RemoveTaskFromEdit(OneTask task)
+    {
+        note!.Tasks.Remove(task);
+    
+        // Если удалили вообще все задачи, оставим одну пустую строку, чтобы поле не исчезало
+        if (!note.Tasks.Any())
+        {
+            note.Tasks.Add(new OneTask());
+        }
+    }
+    
+    
+    private async Task RemoveTaskFromDetails(OneTask task)
+    {
+        if (note!.Tasks.Count == 1)
+        {
+            await DeleteNote();
+        }
+        else
+        {
+            note!.Tasks.Remove(task);
+        }
+    }
+    
+    
+    
+    private async Task HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+    {
+        if (note!.Tasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
+        {
+            return;
+        }
+        
+        // Здесь оставляем только создание новой строки
+        if (e.Key == "Enter")
+        {
+            if (note!.Tasks.Any(t => string.IsNullOrWhiteSpace(t.Text))) return;
+            var task = new OneTask();
+            int index = note!.Tasks.IndexOf(currentTask);
+            if (index != -1) note!.Tasks.Insert(index + 1, task);
+            else note!.Tasks.Add(task);
+            
+            await Task.Delay(20);
+            
+            await JsRuntime.InvokeVoidAsync("focusElement", $"task-{task.Id}");
+            
+        }
+    }
 
+    private void HandleEditTaskKeyUp(KeyboardEventArgs e, OneTask currentTask)
+    {
+        // А удаление переносим сюда, когда клавиша уже отпущена и текст стёрт
+        if (e.Key == "Backspace" || e.Key == "Delete")
+        {
+            // Проверяем: если задача стала пустой
+            if (string.IsNullOrWhiteSpace(currentTask.Text))
+            {
+                // И если в списке больше одной пустой задачи — удаляем текущую
+                if (note!.Tasks.Count(x => string.IsNullOrWhiteSpace(x.Text)) > 1)
+                {
+                    note.Tasks.Remove(currentTask);
+                }
+            }
+        }
+    }
+    
+    
+    
+    
     private void StartEdit()
     {
         if (note == null) return;
@@ -165,8 +331,77 @@
         isEditing = false;
     }
 
-    private async Task SaveEdit()
+    private async Task SaveEditTasks()
     {
+        
+        if (string.IsNullOrWhiteSpace(editTitle))
+        {
+            _isIncorrectTitle = true;
+            return;
+        }
+        
+        _isIncorrectTitle = false;
+        
+        
+        if (note!.Tasks.Count == 1 && string.IsNullOrEmpty(note!.Tasks[0].Text))
+        {
+            _isIncorrectTasks = true;
+            return;
+        }
+
+        _isIncorrectTasks = false;
+        
+        
+        
+        List<DateEvent> dateEvents = [];
+        
+        
+        foreach (var task in note.Tasks)
+        {
+            foreach (var date in _dateParser.ParseDates(task.Text))
+            {
+                dateEvents.Add(new DateEvent(date, task.Text));
+                
+            }
+        }
+        
+        
+        bool areEqual = dateEvents.OrderBy(x => x.Date).SequenceEqual(note.DateEvents.OrderBy(x => x.Date));
+        
+        
+        note.Title = editTitle;
+        note.Tag = editTag;
+        note.Color = editColor;
+        note.EditedAt = DateTime.Now;
+        note.Tasks = new List<OneTask>(string.IsNullOrEmpty(note!.Tasks[^1].Text) ? note!.Tasks[..^1] : note!.Tasks);
+        
+        
+        if (dateEvents.Count != 0 && !areEqual)
+        {
+            var newDateEvents = dateEvents.Where(x => !(note.DateEvents.Select(n => n.Date).Contains(x.Date))).ToList();
+            
+            ModalWindow.OpenModalEdit(note, null, newDateEvents);
+            note.DateEvents = dateEvents; 
+            
+        }
+        
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+        isEditing = false;
+        
+    }
+    
+    
+    private async Task SaveEditText()
+    {
+        
+        if (string.IsNullOrWhiteSpace(editTitle))
+        {
+            _isIncorrectTitle = true;
+            return;
+        }
+        
+        _isIncorrectTitle = false;
+        
         if (note == null) return;
 
         note.Title = editTitle;
@@ -177,19 +412,16 @@
         
         var dates = _dateParser.ParseDates(note.Content);
         bool areEqual = dates.OrderBy(x => x).SequenceEqual(note.Dates.OrderBy(x => x));
-        if (!areEqual)
-        {
-            note.Dates = dates;
-        }
 
-        await LocalStorage.SetItemAsync("my_notes", allNotes);
-        isEditing = false;
-        
 
         if (dates.Count != 0 && !areEqual)
         {
-            ModalWindow.OpenModal(note);
+            ModalWindow.OpenModalEdit(note, dates, null);
+            note.Dates = dates;
         }
+        
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+        isEditing = false;
         
     }
 
@@ -201,7 +433,12 @@
         Navigation.NavigateTo("/"); // Перенаправляем на главную
     }
 
-    private void GoBack() => Navigation.NavigateTo("/");
+    private async Task GoBack()
+    {
+        await LocalStorage.SetItemAsync("my_notes", allNotes);
+
+        Navigation.NavigateTo("/");
+    }
 
     // Метод выбора цвета, адаптирующийся под темную и светлую темы
     private string GetTagColor(string tag) => Theme.IsDarkMode ? tag switch

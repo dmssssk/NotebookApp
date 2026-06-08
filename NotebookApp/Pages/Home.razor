@@ -3,7 +3,9 @@
 @inject NavigationManager Navigation
 @inject ThemeService Theme
 @implements IDisposable
+@using System.Net.Mime
 @using NotebookApp.Utils
+@inject IJSRuntime JsRuntime
 
 <PageTitle>Мои Заметки</PageTitle>
 
@@ -32,7 +34,7 @@
         <div class="d-flex justify-content-between align-items-center mb-2">
             <h5>Новая заметка</h5>
             <!-- Приписка об обязательности заголовка -->
-            @if (TitleIsIncorrect)
+            @if (_isIncorrectTitle)
             {
                 <small class="text-danger fw-bold">* Заголовок обязателен для заполнения</small>
             }
@@ -47,6 +49,14 @@
                    @bind:event="oninput" />
         </div>
 
+        <div class="mb-2">
+            
+            <select class="form-select" @bind="_noteType">
+                <option value="Tasks">список</option>
+                <option value="Text">текст</option>
+            </select>
+        </div>
+            
         <div class="mb-2">
             <select class="form-select" @bind="newTag">
                 @foreach (var tag in availableTags)
@@ -65,12 +75,75 @@
             </div>
         </div>
         
-        <div class="mb-2">
-            <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
-        </div>
-        <button class="btn btn-primary w-100" @onclick="AddNote">
-            Добавить заметку
-        </button>
+        @if (_noteType == NoteType.Text)
+        {
+            <div class="mb-2">
+                <textarea class="form-control" rows="3" placeholder="Текст заметки..." @bind="newContent"></textarea>
+            </div>
+        }
+        else
+        {
+
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold mb-2">Задачи списка</label>
+                @if (_isIncorrectTasks)
+                {
+                    <small class="text-danger fw-bold right-side" style="margin-right: 10px">* для создания списка должен быть хоть одна заполненная задача</small>
+                }
+                <div class="d-flex flex-column gap-2">
+                    @foreach (var task in newTasks)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button"
+                                    class="invisible-btn"
+                                    @onclick="() => task.IsCompleted = !task.IsCompleted">
+                                <span>@(task.IsCompleted ? "✅" : "⬜")</span>
+                            </button>
+                            
+                            <input type="text"
+                                   class="form-control border-secondary" 
+                                   style="min-width: 0;"
+                                   id="@($"task-{task.Id}")"
+                                   placeholder="Текст задачи..." 
+                                   @bind="task.Text" 
+                                   @bind:event="oninput"
+                                   @onkeydown="(e) => HandleEditTaskKeyDown(e, task)" 
+                                   @onkeyup="(e) => HandleEditTaskKeyUp(e, task)" />
+                
+                            <button type="button"
+                                    title="удалить"
+                                    class="invisible-btn"
+                                    @onclick="() => RemoveTaskFromCreate(task)">
+                                <span>❌</span>
+                            </button>
+                        </div>
+                    }
+                </div>
+    
+                <small class="text-secondary d-block mt-2">
+                    💡 Нажмите <kbd>Enter</kbd> внутри любого поля, чтобы добавить новую задачу.
+                </small>
+            </div>
+            
+            
+            
+            
+            
+        }
+        @if (_noteType == NoteType.Text)
+        {
+            <button class="btn btn-primary w-100" @onclick="AddNote">
+                Добавить заметку
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-primary w-100" @onclick="SaveTaskList">
+                Добавить список
+            </button>
+        }
+
     </div>
     
     <!-- Блок сортировки -->
@@ -170,12 +243,37 @@
                                     }
                                 </div>
                             </div>
+                            @if (note.Type == NoteType.Text)
+                            {
+                                <p class="card-text text-secondary" style="white-space: pre-wrap;">
+                                    @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
+                                </p>
+                            }
+                            else
+                            {
+                                for(int i = 0; i < note.Tasks.Count && i < 3; i++)
+                                {
+                                    <button type="button"
+                                            class="invisible-btn"
+                                            @onclick="() => note.Tasks[i].IsCompleted = !note.Tasks[i].IsCompleted">
+                                        <span>@(note.Tasks[i].IsCompleted ? "✅" : "⬜")</span>
+                                    </button>
+                                    
+                                    <span class="card-text text-secondary" style="white-space: pre-wrap; text-decoration: @(note.Tasks[i].IsCompleted ? "line-through" : "none");">
+                                        @(note.Tasks[i].Text.Length > 50 ? note.Tasks[i].Text.Substring(0, 50) + "..." : note.Tasks[i].Text)
+                                    </span>
+                                    <br>
+                                }
 
-                            <p class="card-text text-secondary" style="white-space: pre-wrap;">
-                                @(note.Content.Length > 150 ? note.Content.Substring(0, 150) + "..." : note.Content)
-                            </p>
+                                if (note.Tasks.Count > 3)
+                                {
+                                    <span class="card-text text-secondary" style="font-size: 40px; margin-top: -50px; display: inline-block;">...</span>
+                                }
+                                
+                                
+                            }
 
-
+                            
                             <small class="text-muted d-block mt-2">🕒 @note.CreatedAt.ToString("g")</small>
                             <small class="text-muted d-block mt-2">✏️ @note.EditedAt.ToString("g")</small>
                             @if (note.IsAddedToCalendar)
@@ -200,11 +298,26 @@
     private List<Note> notes = new();
     private List<string> availableTags = new() { "Без тега", "Учёба", "Работа", "Личное", "Идеи" };
 
+    private List<OneTask> newTasks = new() { new OneTask() };
+    private bool _isIncorrectTasks;
+    
+    
+    private Dictionary<OneTask, ElementReference> taskInputs = new();
+    private OneTask? taskToFocus;
+    
+    private void RegisterInput(OneTask task, ElementReference element)
+    {
+        taskInputs[task] = element;
+    }
+    
+    
     private string newTitle = "";
     private string newContent = "";
+    private NoteType _noteType = NoteType.Text;
     private string newTag = "Без тега";
     private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
+    private bool _isIncorrectTitle;
     private bool TitleIsIncorrect;
     private string sortBy = "EditedAt";
     private bool sortDescending = true;
@@ -213,6 +326,112 @@
 
     private DateParser _dateParser = new();
     
+    
+    private void RemoveTaskFromCreate(OneTask task)
+    {
+        newTasks.Remove(task);
+    
+        // Если удалили вообще все строки, оставим одну пустую, чтобы было где писать
+        if (!newTasks.Any())
+        {
+            newTasks.Add(new OneTask());
+        }
+    }
+    
+        private async Task HandleEditTaskKeyDown(KeyboardEventArgs e, OneTask currentTask)
+    {
+        if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text)))
+        {
+            return;
+        }
+        
+        if (e.Key == "Enter")
+        {
+            if (newTasks.Any(t => string.IsNullOrWhiteSpace(t.Text))) return;
+            var task = new OneTask();
+            int index = newTasks.IndexOf(currentTask);
+            if (index != -1) newTasks.Insert(index + 1, task);
+            else newTasks.Add(task);
+
+            await Task.Delay(20);
+            
+            await JsRuntime.InvokeVoidAsync("focusElement", $"task-{task.Id}");
+            
+        }
+    }
+
+    private void HandleEditTaskKeyUp(KeyboardEventArgs e, OneTask currentTask)
+    {
+        // А удаление переносим сюда, когда клавиша уже отпущена и текст стёрт
+        if (e.Key == "Backspace" || e.Key == "Delete")
+        {
+            // Проверяем: если задача стала пустой
+            if (string.IsNullOrWhiteSpace(currentTask.Text))
+            {
+                // И если в списке больше одной пустой задачи — удаляем текущую
+                if (newTasks.Count(x => string.IsNullOrWhiteSpace(x.Text)) > 1)
+                {
+                    newTasks.Remove(currentTask);
+                }
+            }
+        }
+    }
+    
+    private async Task SaveTaskList()
+    {
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            _isIncorrectTitle = true;
+            return;
+        }
+
+        _isIncorrectTitle = false;
+
+        if (newTasks.Count == 1 && string.IsNullOrEmpty(newTasks[0].Text))
+        {
+            _isIncorrectTasks = true;
+            return;
+        }
+
+        _isIncorrectTasks = false;
+
+        List<DateEvent> dateEvents = [];
+        
+        
+        foreach (var task in newTasks)
+        {
+            foreach (var date in _dateParser.ParseDates(task.Text))
+            {
+                dateEvents.Add(new DateEvent(date, task.Text));
+                
+            }
+        }
+
+
+
+        var note = new Note
+        {
+            Type = NoteType.Tasks,
+            Title = newTitle,
+            Tasks = new List<OneTask>(string.IsNullOrEmpty(newTasks[^1].Text) ? newTasks[..^1] : newTasks),
+            Tag = newTag,
+            DateEvents = dateEvents,
+            Color = newNoteColor
+        };
+
+        notes.Add(note);
+
+        await LocalStorage.SetItemAsync("my_notes", notes);
+        
+        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff"; newTasks.Clear(); newTasks.Add( new OneTask() );
+        
+        if (dateEvents.Count != 0)
+        {
+            ModalWindow.OpenModalCreate(note);
+        }
+        
+    }
+
     private string GetUpButtonTitle()
     {
         if (sortBy == "Star")
@@ -353,27 +572,27 @@
 
     private async Task AddNote()
     {
-        if (string.IsNullOrWhiteSpace(newTitle))
-        {
-            TitleIsIncorrect = true;
-            return;
-        }
+            if (string.IsNullOrWhiteSpace(newTitle))
+            {
+                _isIncorrectTitle = true;
+                return;
+            }
 
-        TitleIsIncorrect = false;
+            _isIncorrectTitle = false;
         
         
-        var dates = _dateParser.ParseDates(newContent);
-        var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
-        notes.Add(note);
-        await LocalStorage.SetItemAsync("my_notes", notes);
-        newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
+            var dates = _dateParser.ParseDates(newContent);
+            var note = new Note { Title = newTitle, Content = newContent, Tag = newTag , Dates = dates, Color = newNoteColor};
+            notes.Add(note);
+            await LocalStorage.SetItemAsync("my_notes", notes);
+            newTitle = ""; newContent = ""; newTag = "Без тега"; newNoteColor = "#ffffff";
         
 
-        if (dates.Count != 0)
-        {
-            ModalWindow.OpenModal(note);
-        }
-
+            if (dates.Count != 0)
+            {
+                ModalWindow.OpenModalCreate(note);
+            }
+        
     }
     
     // Отписывает страницу от обновлений, когда пользователь уходит на другую вкладку
