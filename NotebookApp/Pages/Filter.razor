@@ -57,13 +57,13 @@
             <button type="button" 
                     class="btn btn-sm @(sortDescending == false ? "btn-primary" : "btn-outline-secondary")" 
                     @onclick="() => sortDescending = false"
-                    title="Обратный порядок">
+                    title="@GetUpButtonTitle()">
                 ↑
             </button>
             <button type="button" 
                     class="btn btn-sm @(sortDescending == true ? "btn-primary" : "btn-outline-secondary")" 
                     @onclick="() => sortDescending = true"
-                    title="Прямой порядок">
+                    title="@GetDownButtonTitle()">
                 ↓
             </button>
         </div>
@@ -179,6 +179,19 @@
     private string sortBy = "CreatedAt";      // CreatedAt, EditedAt, Star
     private bool sortDescending = true;        // true = сначала важные/новые
 
+    private string GetUpButtonTitle()
+    {
+        if (sortBy == "Star")
+            return "Важные после";
+        return "Сначала старые";
+    }
+
+    private string GetDownButtonTitle()
+    {
+        if (sortBy == "Star")
+            return "Важные сначала";
+        return "Сначала новые";
+    }
     
     private IEnumerable<Note> FilteredNotes
     {
