@@ -72,6 +72,33 @@
             Добавить заметку
         </button>
     </div>
+    
+    <!-- Блок сортировки -->
+    <div class="mb-3 d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted">Сортировать по:</span>
+            <select @bind="sortBy" class="form-select w-auto" style="width: 220px;">
+                <option value="CreatedAt">📅 Дате создания</option>
+                <option value="EditedAt">📅 Дате редактирования</option>
+                <option value="Star">⭐ Важности</option>
+            </select>
+        </div>
+        
+        <div class="btn-group" role="group">
+            <button type="button" 
+                    class="btn btn-sm @(sortDescending == false ? "btn-primary" : "btn-outline-secondary")" 
+                    @onclick="() => sortDescending = false"
+                    title="@GetUpButtonTitle()">
+                ↑
+            </button>
+            <button type="button" 
+                    class="btn btn-sm @(sortDescending == true ? "btn-primary" : "btn-outline-secondary")" 
+                    @onclick="() => sortDescending = true"
+                    title="@GetDownButtonTitle()">
+                ↓
+            </button>
+        </div>
+    </div>
 
     <!-- Список заметок -->
     @if (notes.Count == 0)
@@ -179,25 +206,75 @@
     private string newNoteColor = "#ffffff";
     private string SearchString { get; set; } = "";
     private bool TitleIsIncorrect;
+    private string sortBy = "EditedAt";
+    private bool sortDescending = true;
     
     private CalendarWindow ModalWindow { get; set; } = null!;
 
     private DateParser _dateParser = new();
     
+    private string GetUpButtonTitle()
+    {
+        if (sortBy == "Star")
+            return "Важные после";
+        return "Сначала старые";
+    }
+
+    private string GetDownButtonTitle()
+    {
+        if (sortBy == "Star")
+            return "Важные сначала";
+        return "Сначала новые";
+    }
 
     private IEnumerable<Note> FilteredNotes
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(SearchString))
+            var filtered = notes.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(SearchString))
             {
-                return notes.OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
+                filtered = filtered.Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
+                                               n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase));
             }
 
-            return notes
-                .Where(n => n.Title.Contains(SearchString, StringComparison.OrdinalIgnoreCase) || 
-                            n.Content.Contains(SearchString, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(n => n.IsPinned).ThenByDescending(n => n.EditedAt);
+            var pinned = filtered.Where(n => n.IsPinned);
+            var unpinned = filtered.Where(n => !n.IsPinned);
+
+            var sortedPinned = pinned
+                .OrderByDescending(n => n.Star)
+                .ThenByDescending(n => n.EditedAt)
+                .ThenByDescending(n => n.CreatedAt);
+            
+            IOrderedEnumerable<Note> sortedUnpinned;
+            
+            switch (sortBy)
+            {
+                case "CreatedAt":
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.CreatedAt);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.CreatedAt);
+                    break;
+                    
+                case "EditedAt":
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.EditedAt);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.EditedAt);
+                    break;
+                    
+                case "Star":
+                default:
+                    if (sortDescending)
+                        sortedUnpinned = unpinned.OrderByDescending(n => n.Star);
+                    else
+                        sortedUnpinned = unpinned.OrderBy(n => n.Star);
+                    break;
+            }
+
+            
+            return sortedPinned.Concat(sortedUnpinned);
         }
     }
 
