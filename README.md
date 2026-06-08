@@ -101,9 +101,3 @@ http://localhost:5024 (или http://localhost:5000)
 
 ### Техническое задание
 Ознакомиться с полным ТЗ можно [`тут`](https://docs.google.com/document/d/1UeNJmU1x6hBy_yVKvXRtie9xYWgvQelqdItboX6TKIQ/edit?tab=t.0#heading=h.gjdgxs) 
-
-# 📸 Скриншоты
-## Главный экран
-
-## Фильтрация
-<img width="1857" height="926" alt="image" src="https://github.com/user-attachments/assets/3d26096a-babd-4270-b987-6a9c34b4f7e6" />
